@@ -1,0 +1,53 @@
+/* Transparent signature inspired by the supplied reference. */
+.hero-gallery .hero-copy {
+  align-items: center;
+  text-align: center;
+}
+.hero-gallery .hero-copy .eyebrow,
+.hero-gallery .hero-copy .hero-description,
+.hero-gallery .hero-copy .hero-lead {
+  text-align: center;
+  margin-inline: auto;
+}
+.hero-gallery .hero-copy .hero-cta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-inline: auto;
+}
+.hero-gallery .site-main-title.collection-signature {
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%; max-width: 720px; padding: 0; margin: 0 0 24px; gap: 17px;
+  background: transparent; color: oklch(43% .075 75);
+  font-family: Baskerville, "Palatino Linotype", Georgia, serif;
+  font-size: clamp(12px, 1.2vw, 17px); font-weight: 400;
+  line-height: 1.6; letter-spacing: .09em; text-transform: uppercase;
+}
+.hero-gallery .site-main-title.collection-signature span {
+  color: inherit; font: inherit; letter-spacing: inherit;
+}
+.hero-gallery .collection-signature .signature-words {
+  display: flex; justify-content: center; align-items: center;
+  flex-wrap: wrap; gap: 4px 10px;
+}
+.hero-gallery .signature-words > span { white-space: nowrap; }
+.hero-gallery .collection-signature .signature-rule {
+  display: flex; align-items: center; justify-content: center; gap: 0;
+  width: 46%; max-width: 220px; font-size: 23px; line-height: 1;
+}
+.hero-gallery .signature-rule::before,
+.hero-gallery .signature-rule::after {
+  content: ""; flex: 1; height: 1px; background: currentColor; opacity: .75;
+}
+.hero-gallery .collection-signature .signature-separator {
+  font-size: 10px; letter-spacing: 0;
+}
+@media (max-width: 760px) {
+  .hero-gallery .site-main-title.collection-signature {
+    color: oklch(90% .06 80); font-size: clamp(12px, 3vw, 16px);
+    letter-spacing: .055em; margin-bottom: 22px; gap: 14px;
+    text-shadow: 0 1px 8px oklch(12% .01 75 / .55);
+  }
+  .hero-gallery .collection-signature .signature-words { column-gap: 7px; }
+}
