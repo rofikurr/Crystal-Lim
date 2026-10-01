@@ -1,8 +1,10 @@
-import { getAdmin, sameOrigin } from "../../../../admin/auth";
+import { requirePermissionOrResponse } from "../../../../../lib/auth/permissions";
+import { sameOrigin } from "../../../../../lib/auth/session";
 import { deleteProduct, listProducts } from "../../../../../db/catalog";
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
-  if (!await getAdmin()) return Response.json({ error: "Akses admin ditolak." }, { status: 403 });
+  const { response } = await requirePermissionOrResponse("products.manage");
+  if (response) return response;
   if (!sameOrigin(request)) return Response.json({ error: "Permintaan tidak valid." }, { status: 403 });
   const { id } = await context.params;
   try {

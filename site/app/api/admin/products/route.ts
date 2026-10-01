@@ -1,4 +1,6 @@
-import { getAdmin, sameOrigin } from "../../../admin/auth";
+import { requirePermissionOrResponse } from "../../../../lib/auth/permissions";
+import { sameOrigin } from "../../../../lib/auth/session";
+import { nowForDb } from "../../../../lib/db-time";
 import { listProducts, saveProduct, type Product } from "../../../../db/catalog";
 
 export const dynamic = "force-dynamic";
@@ -7,13 +9,15 @@ const validImage = (value: unknown): value is string => typeof value === "string
   value.length <= 800 && (/^https:\/\//.test(value) || /^\/(assets|media)\/[a-zA-Z0-9._/-]+$/.test(value) || /^assets\/[a-zA-Z0-9._/-]+$/.test(value));
 
 export async function GET() {
-  if (!await getAdmin()) return Response.json({ error: "Akses admin ditolak." }, { status: 403 });
+  const { response } = await requirePermissionOrResponse("products.manage");
+  if (response) return response;
   try { return Response.json({ products: await listProducts(true) }, { headers: { "cache-control": "no-store" } }); }
   catch (error) { console.error(error); return Response.json({ error: "Katalog gagal dimuat." }, { status: 503 }); }
 }
 
 export async function POST(request: Request) {
-  if (!await getAdmin()) return Response.json({ error: "Akses admin ditolak." }, { status: 403 });
+  const { response } = await requirePermissionOrResponse("products.manage");
+  if (response) return response;
   if (!sameOrigin(request)) return Response.json({ error: "Permintaan tidak valid." }, { status: 403 });
   let body: Partial<Product>;
   try { body = await request.json(); } catch { return Response.json({ error: "Data tidak valid." }, { status: 400 }); }
@@ -32,7 +36,7 @@ export async function POST(request: Request) {
     const existing = await listProducts(true);
     const old = existing.find(p => p.id === body.id);
     if (body.id && !old) return Response.json({ error: "Produk tidak ditemukan." }, { status: 404 });
-    const now = new Date().toISOString();
+    const now = nowForDb();
     const product: Product = {
       id: old?.id || `produk-${crypto.randomUUID()}`, name, description, price, category: body.category!,
       image: body.image!, images: [...new Set([body.image!, ...images])],

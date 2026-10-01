@@ -1,32 +1,39 @@
 # Crystal Lim preview + admin
 
-Site publik ini memakai Vinext/Cloudflare Worker, D1 untuk katalog, dan R2 untuk foto yang diunggah. Etalase tetap publik; `/admin` dilindungi login ChatGPT dan daftar email admin di server (`app/admin/auth.ts`). Saat ini hanya akun pemilik **aditamarizki@gmail.com** yang diizinkan. Jangan menaruh email atau sandi admin di kode browser.
+Site ini memakai Next.js 16 standar (`next dev`/`next build`/`next start`), database MySQL (lewat Drizzle ORM), dan penyimpanan foto di filesystem lokal server. Etalase tetap publik; `/admin` dilindungi login email+password mandiri dengan sistem role & permission dinamis (RBAC) — lihat `db/schema.ts` (tabel `users`, `roles`, `permissions`, `role_permissions`) dan `lib/auth/*`.
+
+Project ini sebelumnya berjalan di atas ChatGPT Sites (Vinext + Cloudflare Worker/D1/R2). Seluruh bagian itu sudah dilepas supaya bisa di-deploy ke hosting Node.js standar (termasuk Hostinger).
 
 ## Yang sudah berjalan
 
 - Tambah, edit, hapus, sembunyikan produk; urutan tampil; kategori; harga dan deskripsi.
-- Unggah foto utama JPG/PNG/WebP hingga 5 MB, atau isi URL foto dan galeri.
-- Tandai **Best seller** secara manual. Produk bertanda mendapat lencana dan filter di etalase.
-- Produk awal berasal dari enam produk preview lama dan disimpan sekali ke D1. Setelah itu sumber kebenaran adalah D1, bukan `db/seed-products.js`.
-- Etalase menampilkan perubahan tanpa deploy ulang. Data checkout, tarif ongkir, dan pembayaran tetap **tidak aktif** di preview ini.
+- Unggah foto utama JPG/PNG/WebP hingga 5 MB ke `storage/uploads/` (lokal), atau isi URL foto dan galeri.
+- Tandai **Best seller** secara manual.
+- RBAC dinamis: role baru (mis. "Admin Finance") bisa dibuat lewat `/admin/roles` dengan permission granular, tanpa perlu ubah kode.
+- Superadmin bisa "Lihat sebagai" role lain dari header admin, untuk keperluan testing/QA.
+- Data checkout, tarif ongkir, dan pembayaran tetap **tidak aktif** di preview ini.
 
-## Pengembangan lokal
+## Pengembangan lokal (Docker)
 
 ```sh
-npm ci
-npm run db:generate # hanya setelah mengubah db/schema.ts
-npm run build
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_green_nightcrawler.sql
-npm run dev
+cp .env.example .env   # isi nilainya dulu
+docker compose up -d
+docker compose exec app npm run db:generate   # hanya setelah mengubah db/schema.ts
+docker compose exec app npm run db:migrate
+docker compose exec app npm run db:seed       # bikin role/permission dasar + akun superadmin
 ```
 
-Mock login lokal tersedia di `/signin-with-chatgpt?return_to=/admin` untuk pengujian. Akun mock tidak diberi akses di build produksi. Migrasi D1 baru harus selalu ditambahkan, jangan mengubah migrasi yang sudah terbit.
+Buka `http://localhost:8500/`. Login admin di `http://localhost:8500/admin/login` memakai akun dari `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` di `.env`. phpMyAdmin tersedia di `http://localhost:8520`, MySQL dari tool lain (mis. DBeaver) di `localhost:8510`.
+
+Port sengaja dipakai di rentang `85xx` supaya tidak bentrok dengan project Docker lain di mesin yang sama (WulfGym, Rebate Bonus, Setra Developer Handoff).
+
+Migrasi baru ditambahkan (jangan mengedit migrasi yang sudah terbit) lewat `npm run db:generate` setiap kali `db/schema.ts` berubah, lalu `npm run db:migrate` untuk menerapkannya.
 
 ## Sebelum menjadi toko transaksi sungguhan
 
-1. Dapatkan persetujuan akun/email klien yang boleh menjadi admin, lalu tambahkan ke allowlist server atau mekanisme peran yang setara.
+1. Dapatkan persetujuan akun email klien yang boleh jadi admin, lalu buat user + assign role lewat `/admin/roles`.
 2. Integrasikan dan uji API ongkir serta payment gateway dengan kredensial server. Jangan mengaktifkan tombol bayar sebelum keduanya benar-benar berfungsi.
 3. Konfirmasi stok, berat/dimensi paket, harga, dan kebijakan pengiriman dengan Crystal Lim.
-4. Bila katalog utama tetap WooCommerce, tentukan sinkronisasi atau migrasi. Admin preview ini **tidak mengubah** produk di crystal-lim.com.
+4. Bila katalog utama tetap WooCommerce, tentukan sinkronisasi atau migrasi.
 
-Site ID dan binding berada di `.openai/hosting.json`. Jangan menaruh API key atau kredensial di repository.
+Jangan menaruh API key atau kredensial di repository — semua lewat `.env` (tidak ter-commit).

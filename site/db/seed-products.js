@@ -105,6 +105,6 @@ const crystalCatalog = [
     "description": "7 Sacred Geometry Clear Quartz. Petunjuk penggunaan disertakan bersama paket."
   }
 ];
-if (typeof module !== 'undefined') module.exports = crystalCatalog;
-else window.crystalCatalog = crystalCatalog;
+
+export default crystalCatalog;
 

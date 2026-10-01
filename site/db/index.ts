@@ -1,13 +1,24 @@
-import { env } from "cloudflare:workers";
-import { drizzle } from "drizzle-orm/d1";
+import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import * as schema from "./schema";
 
-export function getDb() {
-  if (!env.DB) {
+declare global {
+  var __mysqlPool: mysql.Pool | undefined;
+}
+
+function createPool() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
     throw new Error(
-      "Cloudflare D1 binding `DB` is unavailable. Set the `d1` field in .openai/hosting.json to `DB` or let your control plane inject the real binding values before using the database."
+      "DATABASE_URL belum diset. Isi file .env sebelum menjalankan aplikasi.",
     );
   }
-
-  return drizzle(env.DB, { schema });
+  return mysql.createPool(url);
 }
+
+// Next.js me-reload modul saat dev (HMR); cache pool di globalThis supaya
+// tidak membuka koneksi baru setiap kali file ini di-reimport.
+const pool = globalThis.__mysqlPool ?? createPool();
+if (process.env.NODE_ENV !== "production") globalThis.__mysqlPool = pool;
+
+export const db = drizzle(pool, { schema, mode: "default" });

@@ -1,7 +1,13 @@
-import storefrontHtml from "./storefront.html?raw";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { listProducts, type Product } from "../db/catalog";
 
 export const dynamic = "force-dynamic";
+
+const storefrontHtml = readFileSync(
+  path.join(process.cwd(), "app", "storefront.html"),
+  "utf-8",
+);
 
 const escape = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
