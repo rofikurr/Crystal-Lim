@@ -23,7 +23,9 @@ docker compose exec app npm run db:migrate
 docker compose exec app npm run db:seed       # bikin role/permission dasar + akun superadmin
 ```
 
-Buka `http://localhost:3000/`. Login admin di `http://localhost:3000/admin/login` memakai akun dari `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` di `.env`. phpMyAdmin tersedia di `http://localhost:8080`.
+Buka `http://localhost:8500/`. Login admin di `http://localhost:8500/admin/login` memakai akun dari `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` di `.env`. phpMyAdmin tersedia di `http://localhost:8520`, MySQL dari tool lain (mis. DBeaver) di `localhost:8510`.
+
+Port sengaja dipakai di rentang `85xx` supaya tidak bentrok dengan project Docker lain di mesin yang sama (WulfGym, Rebate Bonus, Setra Developer Handoff).
 
 Migrasi baru ditambahkan (jangan mengedit migrasi yang sudah terbit) lewat `npm run db:generate` setiap kali `db/schema.ts` berubah, lalu `npm run db:migrate` untuk menerapkannya.
 

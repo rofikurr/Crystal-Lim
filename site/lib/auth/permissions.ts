@@ -129,3 +129,33 @@ export async function requirePermissionOrResponse(
   }
   return { user, response: null };
 }
+
+/**
+ * Sama seperti `requirePermissionOrResponse`, tapi lolos kalau user punya
+ * salah satu dari beberapa permission (mis. membaca daftar role dibutuhkan
+ * baik oleh halaman Role & Permission maupun halaman Manajemen User).
+ */
+export async function requireAnyPermissionOrResponse(
+  slugs: string[],
+): Promise<{ user: EffectiveUser | null; response: Response | null }> {
+  const user = await getEffectiveUser();
+  if (!user) {
+    return {
+      user: null,
+      response: Response.json({ error: "Akses admin ditolak." }, { status: 401 }),
+    };
+  }
+  if (user.isSystem && !user.viewingAs) return { user, response: null };
+  const granted = await getPermissionSlugsForRoleSlug(user.effectiveRoleSlug);
+  const allowed = slugs.some((slug) => granted.includes(slug));
+  if (!allowed) {
+    return {
+      user: null,
+      response: Response.json(
+        { error: "Anda tidak memiliki izin untuk aksi ini." },
+        { status: 403 },
+      ),
+    };
+  }
+  return { user, response: null };
+}

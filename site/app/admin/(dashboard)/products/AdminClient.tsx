@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Product = {
@@ -8,12 +7,6 @@ type Product = {
   image: string; images: string[]; url: string; bestSeller: boolean; published: boolean;
   position: number; createdAt: string; updatedAt: string;
 };
-type AdminUser = {
-  name: string; email: string; actualRoleSlug: string; actualRoleName: string;
-  effectiveRoleSlug: string; isSystem: boolean; viewingAs: boolean; permissions: string[];
-};
-type RoleOption = { slug: string; name: string };
-
 const empty: Product = { id:"",name:"",description:"",price:0,category:"jewelry",image:"",images:[],url:"",bestSeller:false,published:true,position:0,createdAt:"",updatedAt:"" };
 const categories = [
   ["jewelry","Jewelry"],["crystal","Crystals & Chakra Stones"],["sinergi","12 Sinergi Kristal"],
@@ -22,10 +15,7 @@ const categories = [
 ];
 const money = new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0});
 
-export default function AdminClient({ user }: { user: AdminUser }) {
-  const canManageProducts = user.permissions.includes("products.manage");
-  const canManageRoles = user.permissions.includes("roles.manage");
-
+export default function AdminClient({ canManageProducts }: { canManageProducts: boolean }) {
   const [products,setProducts] = useState<Product[]>([]);
   const [current,setCurrent] = useState<Product>({...empty});
   const [loading,setLoading] = useState(true);
@@ -35,7 +25,6 @@ export default function AdminClient({ user }: { user: AdminUser }) {
   const [query,setQuery] = useState("");
   const [editorOpen,setEditorOpen] = useState(false);
   const [gallery,setGallery] = useState("");
-  const [roleOptions,setRoleOptions] = useState<RoleOption[]>([]);
 
   async function refresh() {
     const response = await fetch("/api/admin/products",{cache:"no-store"});
@@ -44,16 +33,6 @@ export default function AdminClient({ user }: { user: AdminUser }) {
     setProducts(data.products);
   }
   useEffect(()=>{ refresh().catch(error=>setMessage(error.message)).finally(()=>setLoading(false)); },[]);
-
-  useEffect(() => {
-    if (!user.isSystem) return;
-    fetch("/api/admin/roles", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { roles: [] }))
-      .then((data: { roles?: { slug: string; name: string }[] }) => {
-        setRoleOptions((data.roles ?? []).map((r) => ({ slug: r.slug, name: r.name })));
-      })
-      .catch(() => {});
-  }, [user.isSystem]);
 
   function edit(product?: Product) {
     const p = product ? {...product, images:[...product.images]} : {...empty,position:products.length,images:[]};
@@ -108,57 +87,12 @@ export default function AdminClient({ user }: { user: AdminUser }) {
     } catch(error) { setMessage(error instanceof Error ? error.message : "Perubahan gagal disimpan."); }
     finally { setBusy(false); }
   }
-  async function signOut() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
-  async function switchViewAs(roleSlug: string) {
-    if (!roleSlug) {
-      await fetch("/api/admin/view-as", { method: "DELETE" });
-    } else {
-      await fetch("/api/admin/view-as", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ roleSlug }),
-      });
-    }
-    window.location.reload();
-  }
 
   const shown = products.filter(product =>
     (filter === "all" || (filter === "best" && product.bestSeller) || (filter === "draft" && !product.published))
     && product.name.toLowerCase().includes(query.toLowerCase()));
 
-  return <main className="admin-shell">
-    {user.viewingAs && (
-      <div className="view-as-banner">
-        <span>Sedang melihat sebagai: <strong>{user.effectiveRoleSlug}</strong> (akun asli: {user.actualRoleName})</span>
-        <button type="button" onClick={()=>switchViewAs("")}>Kembali ke {user.actualRoleName}</button>
-      </div>
-    )}
-    <header className="admin-header">
-      <Link className="admin-brand" href="/">◇ <span>CRYSTAL LIM</span><small>ADMIN</small></Link>
-      <div>
-        {user.isSystem && roleOptions.length > 0 && (
-          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13}}>
-            Lihat sebagai
-            <select
-              value={user.viewingAs ? user.effectiveRoleSlug : ""}
-              onChange={(e)=>switchViewAs(e.target.value)}
-            >
-              <option value="">{user.actualRoleName} (asli)</option>
-              {roleOptions.filter(r=>r.slug!==user.actualRoleSlug).map(r=>(
-                <option key={r.slug} value={r.slug}>{r.name}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        <span className="admin-email">{user.email}</span>
-        <Link href="/">Lihat toko</Link>
-        <a href="#" onClick={(e)=>{e.preventDefault(); signOut();}}>Keluar</a>
-      </div>
-    </header>
-    <div className="admin-content">
+  return <div className="admin-content">
       <div className="admin-intro"><div><p>CATALOG MANAGEMENT</p><h1>Kelola produk</h1><span>Ubah katalog yang tampil di preview Crystal Lim.</span></div>{canManageProducts && <button className="admin-primary" type="button" onClick={()=>edit()}>+ Tambah produk</button>}</div>
       <div className="admin-stats"><div><b>{products.length}</b><span>Total produk</span></div><div><b>{products.filter(p=>p.published).length}</b><span>Tampil di toko</span></div><div><b>{products.filter(p=>p.bestSeller).length}</b><span>Best seller</span></div></div>
       {message && <p className="admin-message" role="status">{message}</p>}
@@ -179,8 +113,6 @@ export default function AdminClient({ user }: { user: AdminUser }) {
       <section className="admin-list"><div className="list-head"><div><h2>Daftar produk</h2><p>{shown.length} produk</p></div><input type="search" aria-label="Cari produk" placeholder="Cari produk…" value={query} onChange={e=>setQuery(e.target.value)} /></div><div className="admin-filters"><button className={filter==="all"?"active":""} onClick={()=>setFilter("all")}>Semua</button><button className={filter==="best"?"active":""} onClick={()=>setFilter("best")}>Best seller</button><button className={filter==="draft"?"active":""} onClick={()=>setFilter("draft")}>Disembunyikan</button></div>
         {loading ? <p className="admin-empty">Memuat katalog…</p> : shown.length===0 ? <p className="admin-empty">Belum ada produk di tampilan ini.</p> : <div className="admin-rows">{shown.map(product=><article className="admin-row" key={product.id}><img src={product.image} alt="" /><div className="row-info"><h3>{product.name}</h3><p>{money.format(product.price)}</p><div className="row-tags">{product.bestSeller && <span>BEST SELLER</span>}{!product.published && <span>DISEMBUNYIKAN</span>}</div></div>{canManageProducts && <div className="row-actions"><button disabled={busy} type="button" onClick={()=>toggleBest(product)}>{product.bestSeller ? "Lepas best seller" : "Jadikan best seller"}</button><button type="button" onClick={()=>edit(product)}>Edit</button><button disabled={busy} className="delete" type="button" onClick={()=>remove(product)}>Hapus</button></div>}</article>)}</div>}
       </section>
-      {canManageRoles && <p className="admin-footnote"><a href="/admin/roles">Kelola role &amp; permission</a></p>}
       <p className="admin-footnote">Perubahan hanya berlaku pada preview ini, belum mengubah katalog di crystal-lim.com. Pembayaran masih belum aktif.</p>
-    </div>
-  </main>;
+    </div>;
 }

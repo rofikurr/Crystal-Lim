@@ -1,7 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../../../db";
 import { permissions, rolePermissions, roles } from "../../../../db/schema";
-import { requirePermissionOrResponse } from "../../../../lib/auth/permissions";
+import {
+  requireAnyPermissionOrResponse,
+  requirePermissionOrResponse,
+} from "../../../../lib/auth/permissions";
 import { sameOrigin } from "../../../../lib/auth/session";
 import { nowForDb } from "../../../../lib/db-time";
 
@@ -39,7 +42,9 @@ async function serializeRoles() {
 }
 
 export async function GET() {
-  const { response } = await requirePermissionOrResponse("roles.manage");
+  // Dibutuhkan juga oleh halaman Manajemen User (buat dropdown pilihan role),
+  // jadi cukup punya salah satu dari kedua permission ini.
+  const { response } = await requireAnyPermissionOrResponse(["roles.manage", "users.manage"]);
   if (response) return response;
   try {
     return Response.json(await serializeRoles(), { headers: { "cache-control": "no-store" } });

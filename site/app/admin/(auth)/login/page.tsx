@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import LoginForm from "./LoginForm";
-import "../admin.css";
+import "@/app/admin/admin.css";
 
 export default function AdminLoginPage() {
   return (
