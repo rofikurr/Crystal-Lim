@@ -1,29 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-type RoleOption = { id: number; slug: string; name: string };
-type UserRow = {
-  id: number;
-  name: string;
-  email: string;
-  phone: string | null;
-  status: "active" | "suspended";
-  roleId: number;
-  roleSlug: string;
-  roleName: string;
-};
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import UserDeleteAlert from "./UserDeleteAlert";
+import UserFormDialog from "./UserFormDialog";
+import UsersTable from "./UsersTable";
+import type { RoleOption, UserRow } from "./types";
 
 export default function UsersClient({ currentUserId }: { currentUserId: number }) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [roleId, setRoleId] = useState<number | "">("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
 
   async function refresh() {
     const [usersRes, rolesRes] = await Promise.all([
@@ -36,181 +29,78 @@ export default function UsersClient({ currentUserId }: { currentUserId: number }
     setUsers(usersData.users);
     setRoles(rolesData.roles ?? []);
   }
+
   useEffect(() => {
-    refresh().catch((e) => setMessage(e.message)).finally(() => setLoading(false));
+    refresh()
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Data user gagal dimuat."))
+      .finally(() => setLoading(false));
   }, []);
 
-  async function createUser(event: React.FormEvent) {
-    event.preventDefault();
+  async function patchUser(user: UserRow, patch: Record<string, unknown>, successMessage: string) {
     setBusy(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, email, password, roleId: Number(roleId) }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "User gagal dibuat.");
-      setName("");
-      setEmail("");
-      setPassword("");
-      setRoleId("");
-      await refresh();
-      setMessage("User baru berhasil dibuat.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "User gagal dibuat.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function updateUser(user: UserRow, patch: Record<string, unknown>) {
-    setBusy(true);
-    setMessage("");
     try {
       const response = await fetch(`/api/admin/users/${user.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       });
-      const data = await response.json();
+      const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error || "User gagal diperbarui.");
       await refresh();
+      toast.success(successMessage);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "User gagal diperbarui.");
+      toast.error(error instanceof Error ? error.message : "User gagal diperbarui.");
     } finally {
       setBusy(false);
     }
   }
-
-  async function deleteUser(user: UserRow) {
-    if (!confirm(`Hapus user "${user.name}"?`)) return;
-    setBusy(true);
-    setMessage("");
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "User gagal dihapus.");
-      await refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "User gagal dihapus.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (loading) return <p className="admin-empty">Memuat user…</p>;
 
   return (
-    <div>
-      {message && (
-        <p className="admin-message" role="status">
-          {message}
-        </p>
-      )}
-      <section className="admin-list">
-        <div className="list-head">
-          <div>
-            <h2>Daftar user</h2>
-            <p>{users.length} user</p>
-          </div>
-        </div>
-        <div className="admin-rows">
-          {users.map((user) => (
-            <article className="admin-row" key={user.id}>
-              <div className="row-info">
-                <h3>
-                  {user.name} {user.id === currentUserId && <small>(kamu)</small>}
-                </h3>
-                <p>{user.email}</p>
-                <div className="row-tags">
-                  <span>{user.roleName.toUpperCase()}</span>
-                  {user.status === "suspended" && <span>NONAKTIF</span>}
-                </div>
-              </div>
-              <div className="row-actions">
-                <select
-                  value={user.roleId}
-                  disabled={busy || user.id === currentUserId}
-                  onChange={(e) => updateUser(user, { roleId: Number(e.target.value) })}
-                >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  disabled={busy || user.id === currentUserId}
-                  type="button"
-                  onClick={() =>
-                    updateUser(user, { status: user.status === "active" ? "suspended" : "active" })
-                  }
-                >
-                  {user.status === "active" ? "Nonaktifkan" : "Aktifkan"}
-                </button>
-                <button
-                  disabled={busy || user.id === currentUserId}
-                  className="delete"
-                  type="button"
-                  onClick={() => deleteUser(user)}
-                >
-                  Hapus
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button onClick={() => setFormOpen(true)}>
+          <Plus className="size-4" /> Tambah user
+        </Button>
+      </div>
 
-      <section className="admin-editor" aria-label="Tambah user baru">
-        <div className="editor-head">
-          <h2>Tambah user</h2>
-        </div>
-        <form onSubmit={createUser}>
-          <div className="admin-form-grid">
-            <label>
-              Nama
-              <input required value={name} onChange={(e) => setName(e.target.value)} />
-            </label>
-            <label>
-              Email
-              <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </label>
-            <label>
-              Kata sandi
-              <input
-                required
-                type="password"
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            <label>
-              Role
-              <select
-                required
-                value={roleId}
-                onChange={(e) => setRoleId(e.target.value ? Number(e.target.value) : "")}
-              >
-                <option value="">Pilih role</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="editor-actions">
-            <button className="admin-primary" disabled={busy} type="submit">
-              Tambah user
-            </button>
-          </div>
-        </form>
-      </section>
+      <Card>
+        <CardContent>
+          {loading ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">Memuat user…</p>
+          ) : (
+            <UsersTable
+              users={users}
+              roles={roles}
+              currentUserId={currentUserId}
+              busy={busy}
+              onChangeRole={(user, roleId) =>
+                patchUser(user, { roleId }, "Role user diperbarui.")
+              }
+              onToggleStatus={(user) =>
+                patchUser(
+                  user,
+                  { status: user.status === "active" ? "suspended" : "active" },
+                  user.status === "active" ? "User dinonaktifkan." : "User diaktifkan.",
+                )
+              }
+              onDelete={setDeleteTarget}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <UserFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        roles={roles}
+        onCreated={refresh}
+      />
+      <UserDeleteAlert
+        user={deleteTarget}
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onDeleted={refresh}
+      />
     </div>
   );
 }

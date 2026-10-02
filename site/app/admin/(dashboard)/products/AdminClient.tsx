@@ -1,118 +1,191 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, Search } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import ProductDeleteAlert from "./ProductDeleteAlert";
+import ProductDetailSheet from "./ProductDetailSheet";
+import ProductFormDialog from "./ProductFormDialog";
+import ProductsTable from "./ProductsTable";
+import type { Product } from "./types";
 
-type Product = {
-  id: string; name: string; description: string; price: number; category: string;
-  image: string; images: string[]; url: string; bestSeller: boolean; published: boolean;
-  position: number; createdAt: string; updatedAt: string;
-};
-const empty: Product = { id:"",name:"",description:"",price:0,category:"jewelry",image:"",images:[],url:"",bestSeller:false,published:true,position:0,createdAt:"",updatedAt:"" };
-const categories = [
-  ["jewelry","Jewelry"],["crystal","Crystals & Chakra Stones"],["sinergi","12 Sinergi Kristal"],
-  ["antique","Antique"],["combination","Combination Jewelry"],["loose","Loose Gemstones"],
-  ["rough","Rough Stones"],["herkimer","Herkimer Diamond"],
-];
-const money = new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0});
+const FILTERS = [
+  ["all", "Semua"],
+  ["best", "Best seller"],
+  ["draft", "Disembunyikan"],
+] as const;
 
 export default function AdminClient({ canManageProducts }: { canManageProducts: boolean }) {
-  const [products,setProducts] = useState<Product[]>([]);
-  const [current,setCurrent] = useState<Product>({...empty});
-  const [loading,setLoading] = useState(true);
-  const [busy,setBusy] = useState(false);
-  const [message,setMessage] = useState("");
-  const [filter,setFilter] = useState("all");
-  const [query,setQuery] = useState("");
-  const [editorOpen,setEditorOpen] = useState(false);
-  const [gallery,setGallery] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
+  const [query, setQuery] = useState("");
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
 
   async function refresh() {
-    const response = await fetch("/api/admin/products",{cache:"no-store"});
-    const data = await response.json() as { error?: string; products: Product[] };
-    if (!response.ok) throw Error(data.error || "Katalog gagal dimuat.");
+    const response = await fetch("/api/admin/products", { cache: "no-store" });
+    const data = (await response.json()) as { error?: string; products: Product[] };
+    if (!response.ok) throw new Error(data.error || "Katalog gagal dimuat.");
     setProducts(data.products);
   }
-  useEffect(()=>{ refresh().catch(error=>setMessage(error.message)).finally(()=>setLoading(false)); },[]);
 
-  function edit(product?: Product) {
-    const p = product ? {...product, images:[...product.images]} : {...empty,position:products.length,images:[]};
-    setCurrent(p); setGallery((p.images || []).filter(url=>url !== p.image).join("\n"));
-    setMessage(""); setEditorOpen(true);
-    window.scrollTo({top:0,behavior:"smooth"});
-  }
-  function update<K extends keyof Product>(key: K, value: Product[K]) {
-    setCurrent(prev => ({...prev,[key]:value}));
-  }
-  async function upload(file: File | undefined) {
-    if (!file) return;
-    setBusy(true); setMessage("Mengunggah foto…");
-    try {
-      const form = new FormData(); form.append("image",file);
-      const response = await fetch("/api/admin/upload",{method:"POST",body:form});
-      const data = await response.json() as { error?: string; url: string };
-      if (!response.ok) throw Error(data.error || "Foto gagal diunggah.");
-      update("image",data.url); setMessage("Foto berhasil diunggah. Simpan produk untuk menampilkannya.");
-    } catch(error) { setMessage(error instanceof Error ? error.message : "Foto gagal diunggah."); }
-    finally { setBusy(false); }
-  }
-  async function save(event: React.FormEvent) {
-    event.preventDefault(); setBusy(true); setMessage("Menyimpan produk…");
-    try {
-      const payload = {...current,images:gallery.split("\n").map(x=>x.trim()).filter(Boolean)};
-      const response = await fetch("/api/admin/products",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
-      const data = await response.json() as { error?: string; product: Product };
-      if (!response.ok) throw Error(data.error || "Produk gagal disimpan.");
-      await refresh(); setEditorOpen(false); setMessage(`${data.product.name} berhasil disimpan.`);
-    } catch(error) { setMessage(error instanceof Error ? error.message : "Produk gagal disimpan."); }
-    finally { setBusy(false); }
-  }
-  async function remove(product: Product) {
-    if (!confirm(`Hapus "${product.name}" dari katalog? Tindakan ini tidak dapat dibatalkan.`)) return;
-    setBusy(true); setMessage("Menghapus produk…");
-    try {
-      const response = await fetch(`/api/admin/products/${encodeURIComponent(product.id)}`,{method:"DELETE"});
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw Error(data.error || "Produk gagal dihapus.");
-      await refresh(); setEditorOpen(false); setMessage("Produk dihapus.");
-    } catch(error) { setMessage(error instanceof Error ? error.message : "Produk gagal dihapus."); }
-    finally { setBusy(false); }
-  }
+  useEffect(() => {
+    refresh()
+      .catch((error) =>
+        toast.error(error instanceof Error ? error.message : "Katalog gagal dimuat."),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
   async function toggleBest(product: Product) {
-    setBusy(true); setMessage("");
+    setBusy(true);
     try {
-      const response = await fetch("/api/admin/products",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...product,bestSeller:!product.bestSeller})});
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw Error(data.error || "Perubahan gagal disimpan.");
-      await refresh(); setMessage(product.bestSeller ? "Label best seller dilepas." : "Produk ditandai best seller.");
-    } catch(error) { setMessage(error instanceof Error ? error.message : "Perubahan gagal disimpan."); }
-    finally { setBusy(false); }
+      const response = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...product, bestSeller: !product.bestSeller }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Perubahan gagal disimpan.");
+      await refresh();
+      toast.success(
+        product.bestSeller ? "Label best seller dilepas." : "Produk ditandai best seller.",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Perubahan gagal disimpan.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const shown = products.filter(product =>
-    (filter === "all" || (filter === "best" && product.bestSeller) || (filter === "draft" && !product.published))
-    && product.name.toLowerCase().includes(query.toLowerCase()));
+  const shown = products.filter(
+    (product) =>
+      (filter === "all" ||
+        (filter === "best" && product.bestSeller) ||
+        (filter === "draft" && !product.published)) &&
+      product.name.toLowerCase().includes(query.toLowerCase()),
+  );
 
-  return <div className="admin-content">
-      <div className="admin-intro"><div><p>CATALOG MANAGEMENT</p><h1>Kelola produk</h1><span>Ubah katalog yang tampil di preview Crystal Lim.</span></div>{canManageProducts && <button className="admin-primary" type="button" onClick={()=>edit()}>+ Tambah produk</button>}</div>
-      <div className="admin-stats"><div><b>{products.length}</b><span>Total produk</span></div><div><b>{products.filter(p=>p.published).length}</b><span>Tampil di toko</span></div><div><b>{products.filter(p=>p.bestSeller).length}</b><span>Best seller</span></div></div>
-      {message && <p className="admin-message" role="status">{message}</p>}
-      {editorOpen && canManageProducts && <section className="admin-editor" aria-label="Formulir produk"><div className="editor-head"><div><p>PRODUK</p><h2>{current.id ? "Edit produk" : "Tambah produk"}</h2></div><button type="button" onClick={()=>setEditorOpen(false)} aria-label="Tutup formulir">×</button></div>
-        <form onSubmit={save}><div className="admin-form-grid">
-          <label className="admin-wide">Nama produk<input required maxLength={140} value={current.name} onChange={e=>update("name",e.target.value)} /></label>
-          <label>Harga (Rp)<input required min={0} max={1000000000} type="number" value={current.price} onChange={e=>update("price",Number(e.target.value))} /></label>
-          <label>Kategori<select value={current.category} onChange={e=>update("category",e.target.value)}>{categories.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-          <label className="admin-wide">Deskripsi<textarea rows={5} maxLength={3000} value={current.description} onChange={e=>update("description",e.target.value)} /></label>
-          <label className="admin-wide">Foto utama<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>upload(e.target.files?.[0])} /><small>JPG, PNG atau WebP, maksimal 5 MB.</small></label>
-          <label className="admin-wide">Atau URL foto utama<input required value={current.image} onChange={e=>update("image",e.target.value)} placeholder="https://... atau /media/..." /></label>
-          {current.image && <img className="admin-preview" src={current.image} alt="Pratinjau foto produk" />}
-          <label className="admin-wide">Foto tambahan (satu URL per baris)<textarea rows={3} value={gallery} onChange={e=>setGallery(e.target.value)} placeholder="https://..." /></label>
-          <label className="admin-wide">Link produk asli (opsional)<input type="url" value={current.url} onChange={e=>update("url",e.target.value)} placeholder="https://crystal-lim.com/..." /></label>
-          <label>Urutan tampil<input type="number" min={0} max={10000} value={current.position} onChange={e=>update("position",Number(e.target.value))} /></label>
-          <div className="admin-checks"><label><input type="checkbox" checked={current.published} onChange={e=>update("published",e.target.checked)} /> Tampilkan di toko</label><label><input type="checkbox" checked={current.bestSeller} onChange={e=>update("bestSeller",e.target.checked)} /> Best seller</label></div>
-        </div><div className="editor-actions"><button type="button" onClick={()=>setEditorOpen(false)}>Batal</button><button className="admin-primary" disabled={busy} type="submit">{busy ? "Menunggu…" : "Simpan produk"}</button></div></form></section>}
-      <section className="admin-list"><div className="list-head"><div><h2>Daftar produk</h2><p>{shown.length} produk</p></div><input type="search" aria-label="Cari produk" placeholder="Cari produk…" value={query} onChange={e=>setQuery(e.target.value)} /></div><div className="admin-filters"><button className={filter==="all"?"active":""} onClick={()=>setFilter("all")}>Semua</button><button className={filter==="best"?"active":""} onClick={()=>setFilter("best")}>Best seller</button><button className={filter==="draft"?"active":""} onClick={()=>setFilter("draft")}>Disembunyikan</button></div>
-        {loading ? <p className="admin-empty">Memuat katalog…</p> : shown.length===0 ? <p className="admin-empty">Belum ada produk di tampilan ini.</p> : <div className="admin-rows">{shown.map(product=><article className="admin-row" key={product.id}><img src={product.image} alt="" /><div className="row-info"><h3>{product.name}</h3><p>{money.format(product.price)}</p><div className="row-tags">{product.bestSeller && <span>BEST SELLER</span>}{!product.published && <span>DISEMBUNYIKAN</span>}</div></div>{canManageProducts && <div className="row-actions"><button disabled={busy} type="button" onClick={()=>toggleBest(product)}>{product.bestSeller ? "Lepas best seller" : "Jadikan best seller"}</button><button type="button" onClick={()=>edit(product)}>Edit</button><button disabled={busy} className="delete" type="button" onClick={()=>remove(product)}>Hapus</button></div>}</article>)}</div>}
-      </section>
-      <p className="admin-footnote">Perubahan hanya berlaku pada preview ini, belum mengubah katalog di crystal-lim.com. Pembayaran masih belum aktif.</p>
-    </div>;
+  return (
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-bold tracking-widest text-accent-foreground">
+            CATALOG MANAGEMENT
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Kelola produk</h1>
+          <p className="mt-1 text-muted-foreground">
+            Ubah katalog yang tampil di preview Crystal Lim.
+          </p>
+        </div>
+        {canManageProducts && (
+          <Button
+            onClick={() => {
+              setEditingProduct(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="size-4" /> Tambah produk
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card>
+          <CardContent>
+            <p className="text-2xl font-bold">{products.length}</p>
+            <p className="text-sm text-muted-foreground">Total produk</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-2xl font-bold">{products.filter((p) => p.published).length}</p>
+            <p className="text-sm text-muted-foreground">Tampil di toko</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-2xl font-bold">{products.filter((p) => p.bestSeller).length}</p>
+            <p className="text-sm text-muted-foreground">Best seller</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-1 overflow-x-auto">
+              {FILTERS.map(([value, label]) => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={filter === value ? "secondary" : "ghost"}
+                  onClick={() => setFilter(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Cari produk…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {loading ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">Memuat katalog…</p>
+          ) : (
+            <ProductsTable
+              products={shown}
+              canManageProducts={canManageProducts}
+              busy={busy}
+              onDetail={setDetailProduct}
+              onEdit={(product) => {
+                setEditingProduct(product);
+                setFormOpen(true);
+              }}
+              onDelete={setDeleteTarget}
+              onToggleBest={toggleBest}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <p className="text-xs text-muted-foreground">
+        Perubahan hanya berlaku pada preview ini, belum mengubah katalog di crystal-lim.com.
+        Pembayaran masih belum aktif.
+      </p>
+
+      <ProductFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        product={editingProduct}
+        onSaved={refresh}
+      />
+      <ProductDeleteAlert
+        product={deleteTarget}
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onDeleted={refresh}
+      />
+      <ProductDetailSheet
+        product={detailProduct}
+        open={detailProduct !== null}
+        onOpenChange={(open) => !open && setDetailProduct(null)}
+      />
+    </div>
+  );
 }

@@ -88,8 +88,7 @@ body { background: oklch(97% .008 310); }
 
 /* Quiet, spacious product presentation. */
 :root { --ink: oklch(23% .008 280); --muted: oklch(49% .012 280); --plum: oklch(47% .18 255); --line: oklch(89% .008 280); --white: oklch(99.6% .002 280); }
-body { background: oklch(97% .004 280); font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; }
-h1,h2,h3,.brand b,.product-info h3 { font-family: inherit; }
+body { background: oklch(97% .004 280); }
 .announcement { background: oklch(94% .004 280); color: var(--ink); font-weight: 400; letter-spacing: .04em; }
 .announcement strong { color: var(--ink); font-weight: 600; }
 .site-header { border-bottom: 1px solid var(--line); background: var(--white); }

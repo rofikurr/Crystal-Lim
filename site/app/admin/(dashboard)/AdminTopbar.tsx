@@ -1,7 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LogOut, Store } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type TopbarUser = {
   name: string;
@@ -48,51 +59,68 @@ export default function AdminTopbar({ user }: { user: TopbarUser }) {
   return (
     <>
       {user.viewingAs && (
-        <div className="view-as-banner">
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-[#3a2f1f] px-5 py-2.5 text-sm text-[#f5eedf]">
           <span>
             Sedang melihat sebagai: <strong>{user.effectiveRoleSlug}</strong> (akun asli:{" "}
             {user.actualRoleName})
           </span>
-          <button type="button" onClick={() => switchViewAs("")}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 border-[#d7c6a6] bg-transparent text-[#f5eedf] hover:bg-white/10 hover:text-[#f5eedf]"
+            onClick={() => switchViewAs("")}
+          >
             Kembali ke {user.actualRoleName}
-          </button>
+          </Button>
         </div>
       )}
-      <header className="admin-header">
-        <Link className="admin-brand" href="/admin">
-          ◇ <span>CRYSTAL LIM</span>
-          <small>ADMIN</small>
+      <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
+        <Link href="/admin" className="flex items-center gap-2">
+          <Image
+            src="/assets/crystal-lim-logo-transparent.png"
+            alt="Crystal Lim"
+            width={32}
+            height={32}
+          />
+          <span className="text-base font-extrabold tracking-wide">CRYSTAL LIM</span>
+          <span className="border-l border-border pl-2 text-[10px] tracking-widest text-muted-foreground">
+            ADMIN
+          </span>
         </Link>
-        <div>
+        <div className="flex items-center gap-2">
           {user.isSystem && roleOptions.length > 0 && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-              Lihat sebagai
-              <select
-                value={user.viewingAs ? user.effectiveRoleSlug : ""}
-                onChange={(e) => switchViewAs(e.target.value)}
-              >
-                <option value="">{user.actualRoleName} (asli)</option>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Lihat sebagai:{" "}
+                  {user.viewingAs ? user.effectiveRoleSlug : `${user.actualRoleName} (asli)`}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Lihat sebagai</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => switchViewAs("")}>
+                  {user.actualRoleName} (asli)
+                </DropdownMenuItem>
                 {roleOptions
                   .filter((r) => r.slug !== user.actualRoleSlug)
                   .map((r) => (
-                    <option key={r.slug} value={r.slug}>
+                    <DropdownMenuItem key={r.slug} onClick={() => switchViewAs(r.slug)}>
                       {r.name}
-                    </option>
+                    </DropdownMenuItem>
                   ))}
-              </select>
-            </label>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          <span className="admin-email">{user.email}</span>
-          <Link href="/">Lihat toko</Link>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              signOut();
-            }}
-          >
-            Keluar
-          </a>
+          <span className="hidden text-sm text-muted-foreground sm:inline">{user.email}</span>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/">
+              <Store className="size-4" /> Lihat toko
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={signOut}>
+            <LogOut className="size-4" /> Keluar
+          </Button>
         </div>
       </header>
     </>

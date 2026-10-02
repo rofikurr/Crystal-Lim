@@ -44,8 +44,10 @@ Catatan status pengerjaan setelah handoff awal (`START-HERE.md`), diurutkan per 
 
 ### Deployment
 
-- [x] Deploy ke Vercel — project `main.crystal-lim` sukses jalan di `maincrystal-lim.vercel.app`
-- [x] Database production: Aiven MySQL (free tier), sudah migrate + seed
+- [x] Deploy ke Vercel — project `main-crystal-lim` sukses jalan di `main-crystal-lim.vercel.app` (lacak branch `main`)
+- [x] Project Vercel kedua `dev-crystal-lim` — lacak branch `develop`, jalan di `dev-crystal-lim.vercel.app`
+- [x] Ignored Build Step ("Only build production") diset di kedua project, biar tidak saling build ganda lintas branch
+- [x] Database production: Aiven MySQL (free tier), sudah migrate + seed — dipakai bersama oleh kedua domain
 - [x] Data dummy lokal terpisah total dari data produksi (lokal pakai MySQL Docker, production pakai Aiven)
 
 ---
@@ -53,7 +55,6 @@ Catatan status pengerjaan setelah handoff awal (`START-HERE.md`), diurutkan per 
 ## Belum dikerjakan (belum ada tanggal selesai)
 
 - [ ] Laporan pendapatan/analitik di dashboard — nunggu sistem order/checkout ada dulu
-- [ ] Project Vercel kedua untuk branch `develop` (`dev.crystal-lim`)
 - [ ] Ganti SSL Aiven dari `rejectUnauthorized:false` ke verifikasi CA certificate resmi (belum mendesak selama masih tahap preview)
 - [ ] Sistem order/checkout (nunggu keputusan bisnis: kurir, COD, payment gateway)
 - [ ] Sinkronisasi dengan katalog lama WooCommerce (`crystal-lim.com`)
