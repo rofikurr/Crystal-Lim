@@ -40,10 +40,32 @@ function filterButton(slug: string, name: string) {
   return `<button class="filter" data-filter="${escape(slug)}">${escape(name.toUpperCase())}</button>`;
 }
 
+const unavailablePage = `<!doctype html><html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crystal Lim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:'Manrope',sans-serif;background:radial-gradient(circle at 50% 10%,#fdfbf7 0%,#f3ede1 55%,#ece3d2 100%)}
+.card{width:min(420px,100%);background:#fff;border:1px solid #e6dfd4;box-shadow:0 24px 60px -24px rgba(90,69,30,.25);padding:40px 36px;text-align:center}
+img{display:block;margin:0 auto 16px;width:72px;height:72px;filter:drop-shadow(0 6px 14px rgba(181,138,72,.2))}
+h1{font-size:22px;margin:0 0 8px;color:#25211b}p{color:#777067;font-size:14px;margin:0 0 24px}
+a{display:inline-block;background:#b18a48;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px}</style>
+</head><body><div class="card"><img src="/assets/crystal-lim-logo-transparent.png" alt="Crystal Lim">
+<h1>Toko sedang tidak tersedia</h1><p>Sedang ada gangguan sementara. Silakan muat ulang beberapa saat lagi.</p>
+<a href="/">Muat ulang</a></div></body></html>`;
+
 export async function GET() {
   try {
-    const products = await listProducts();
-    const shippingFlatFee = Number(await getSetting("shipping_flat_fee", "0"));
+    const products = await listProducts().catch((error) => {
+      console.error("Katalog produk gagal dimuat, tampilkan etalase kosong", error);
+      return [];
+    });
+    const shippingFlatFee = await getSetting("shipping_flat_fee", "0")
+      .then(Number)
+      .catch((error) => {
+        console.error("Pengaturan ongkir gagal dimuat, pakai default 0", error);
+        return 0;
+      });
     const usedCategories = new Map<string, string>();
     for (const product of products) {
       for (const category of product.categories) {
@@ -66,6 +88,6 @@ export async function GET() {
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   } catch (error) {
     console.error("Storefront unavailable", error);
-    return new Response("Katalog sementara tidak tersedia. Silakan coba lagi nanti.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } });
+    return new Response(unavailablePage, { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
   }
 }
