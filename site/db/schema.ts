@@ -15,11 +15,9 @@ export const products = mysqlTable("products", {
   name: varchar("name", { length: 140 }).notNull(),
   description: text("description").notNull(),
   price: int("price").notNull(),
-  category: varchar("category", { length: 32 }).notNull(),
   image: varchar("image", { length: 800 }).notNull(),
   images: json("images").$type<string[]>().notNull().default([]),
   sourceUrl: varchar("source_url", { length: 800 }).notNull().default(""),
-  bestSeller: boolean("best_seller").notNull().default(false),
   published: boolean("published").notNull().default(true),
   position: int("position").notNull().default(0),
   createdAt: datetime("created_at", { mode: "string" }).notNull(),
@@ -30,6 +28,28 @@ export const catalogMeta = mysqlTable("catalog_meta", {
   id: varchar("id", { length: 32 }).primaryKey(),
   seeded: boolean("seeded").notNull().default(false),
 });
+
+export const categories = mysqlTable("categories", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 64 }).notNull().unique(),
+  name: varchar("name", { length: 120 }).notNull(),
+  // Kategori sistem (Best Seller): tidak bisa diubah/dihapus lewat UI kategori.
+  isSystem: boolean("is_system").notNull().default(false),
+  position: int("position").notNull().default(0),
+});
+
+export const productCategories = mysqlTable(
+  "product_categories",
+  {
+    productId: varchar("product_id", { length: 64 })
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    categoryId: int("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.productId, table.categoryId] })],
+);
 
 // --- RBAC: role & permission dinamis ---
 

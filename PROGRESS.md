@@ -50,6 +50,23 @@ Catatan status pengerjaan setelah handoff awal (`START-HERE.md`), diurutkan per 
 - [x] Database production: Aiven MySQL (free tier), sudah migrate + seed — dipakai bersama oleh kedua domain
 - [x] Data dummy lokal terpisah total dari data produksi (lokal pakai MySQL Docker, production pakai Aiven)
 
+### Storefront & typography
+
+- [x] Perbaiki konflik CSS yang bikin semua font etalase fallback ke Arial (aturan `font-family: inherit` di `marketplace.css` yang menimpa `styles.css`)
+- [x] Load Manrope + Marcellus + Italiana via Google Fonts (sebelumnya cuma Manrope)
+- [x] Admin panel ikut pakai Manrope (lewat `next/font/google`), tidak lagi font sendiri (Arial)
+
+### Admin panel — redesign UI/UX
+
+- [x] Sambungkan Tailwind v4 + shadcn/ui (sudah ter-vendor, belum pernah dipakai) — warna di-remap ke palet emas-cream Crystal Lim
+- [x] Sidebar & topbar dirapikan (ikon, dropdown "Lihat sebagai")
+- [x] Dashboard — kartu statistik simetris pakai `Card` + ikon
+- [x] Produk: Table + Modal Tambah/Edit + AlertDialog konfirmasi hapus + Sheet Detail (fitur baru)
+- [x] Manajemen User: Table + Modal tambah + AlertDialog hapus + proteksi self/superadmin
+- [x] Role & Permission: Card per role + Modal buat role + AlertDialog hapus
+- [x] Notifikasi toast (sonner) ganti pesan teks biasa
+- [x] Halaman Login didesain ulang (tema terang emas-cream, logo asli) — tidak ikut berubah lagi di redesign admin panel
+
 ---
 
 ## Belum dikerjakan (belum ada tanggal selesai)

@@ -10,7 +10,7 @@ import ProductDeleteAlert from "./ProductDeleteAlert";
 import ProductDetailSheet from "./ProductDetailSheet";
 import ProductFormDialog from "./ProductFormDialog";
 import ProductsTable from "./ProductsTable";
-import type { Product } from "./types";
+import { BEST_SELLER_SLUG, isBestSeller, type Category, type Product } from "./types";
 
 const FILTERS = [
   ["all", "Semua"],
@@ -20,6 +20,7 @@ const FILTERS = [
 
 export default function AdminClient({ canManageProducts }: { canManageProducts: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
@@ -32,9 +33,14 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
 
   async function refresh() {
     const response = await fetch("/api/admin/products", { cache: "no-store" });
-    const data = (await response.json()) as { error?: string; products: Product[] };
+    const data = (await response.json()) as {
+      error?: string;
+      products: Product[];
+      categories: Category[];
+    };
     if (!response.ok) throw new Error(data.error || "Katalog gagal dimuat.");
     setProducts(data.products);
+    setCategories(data.categories);
   }
 
   useEffect(() => {
@@ -46,19 +52,23 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
   }, []);
 
   async function toggleBest(product: Product) {
+    const bestSellerCategory = categories.find((c) => c.slug === BEST_SELLER_SLUG);
+    if (!bestSellerCategory) return;
+    const currentlyBest = isBestSeller(product);
+    const categoryIds = currentlyBest
+      ? product.categories.filter((c) => c.id !== bestSellerCategory.id).map((c) => c.id)
+      : [...product.categories.map((c) => c.id), bestSellerCategory.id];
     setBusy(true);
     try {
       const response = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...product, bestSeller: !product.bestSeller }),
+        body: JSON.stringify({ ...product, categoryIds }),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error || "Perubahan gagal disimpan.");
       await refresh();
-      toast.success(
-        product.bestSeller ? "Label best seller dilepas." : "Produk ditandai best seller.",
-      );
+      toast.success(currentlyBest ? "Label best seller dilepas." : "Produk ditandai best seller.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Perubahan gagal disimpan.");
     } finally {
@@ -69,7 +79,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
   const shown = products.filter(
     (product) =>
       (filter === "all" ||
-        (filter === "best" && product.bestSeller) ||
+        (filter === "best" && isBestSeller(product)) ||
         (filter === "draft" && !product.published)) &&
       product.name.toLowerCase().includes(query.toLowerCase()),
   );
@@ -113,7 +123,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
         </Card>
         <Card>
           <CardContent>
-            <p className="text-2xl font-bold">{products.filter((p) => p.bestSeller).length}</p>
+            <p className="text-2xl font-bold">{products.filter(isBestSeller).length}</p>
             <p className="text-sm text-muted-foreground">Best seller</p>
           </CardContent>
         </Card>
@@ -173,6 +183,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
         open={formOpen}
         onOpenChange={setFormOpen}
         product={editingProduct}
+        categories={categories}
         onSaved={refresh}
       />
       <ProductDeleteAlert

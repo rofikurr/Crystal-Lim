@@ -161,7 +161,8 @@ function refreshCatalog() {
   const selected = qs('.filter.active')?.dataset.filter || 'all';
   const query = qs('#search-input').value.toLowerCase().trim();
   catalogProducts.forEach(product => {
-    product.hidden = (selected === 'best' ? product.dataset.bestSeller !== 'true' : selected !== 'all' && product.dataset.category !== selected) || !product.dataset.name.toLowerCase().includes(query);
+    const productCategories = product.dataset.category ? product.dataset.category.split(',') : [];
+    product.hidden = (selected !== 'all' && !productCategories.includes(selected)) || !product.dataset.name.toLowerCase().includes(query);
   });
   qs('#result-count').textContent = catalogProducts.filter(product => !product.hidden).length;
   emptyResults.hidden = catalogProducts.some(product => !product.hidden);

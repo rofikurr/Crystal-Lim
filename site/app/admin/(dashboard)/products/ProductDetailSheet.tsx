@@ -8,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { money, type Product } from "./types";
+import { BEST_SELLER_SLUG, isBestSeller, money, type Product } from "./types";
 
 export default function ProductDetailSheet({
   product,
@@ -30,7 +30,7 @@ export default function ProductDetailSheet({
             </SheetHeader>
             <div className="flex flex-col gap-4 px-4 pb-4">
               <div className="flex flex-wrap gap-1.5">
-                {product.bestSeller && <Badge>Best seller</Badge>}
+                {isBestSeller(product) && <Badge>Best seller</Badge>}
                 <Badge variant={product.published ? "secondary" : "outline"}>
                   {product.published ? "Tampil di toko" : "Disembunyikan"}
                 </Badge>
@@ -55,7 +55,14 @@ export default function ProductDetailSheet({
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-muted-foreground">Kategori</dt>
-                  <dd className="font-medium">{product.category}</dd>
+                  <dd className="font-medium">
+                    {product.categories.filter((c) => c.slug !== BEST_SELLER_SLUG).length > 0
+                      ? product.categories
+                          .filter((c) => c.slug !== BEST_SELLER_SLUG)
+                          .map((c) => c.name)
+                          .join(", ")
+                      : "—"}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Urutan tampil</dt>

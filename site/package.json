@@ -12,6 +12,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:migrate-categories": "tsx scripts/migrate-categories-data.ts",
     "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {

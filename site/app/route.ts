@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { listProducts, type Product } from "../db/catalog";
+import { BEST_SELLER_SLUG, listProducts, type Product } from "../db/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -11,26 +11,37 @@ const storefrontHtml = readFileSync(
 
 const escape = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
-const categoryName = (value: string) => ({
-  jewelry: "JEWELRY", crystal: "CRYSTALS AND CHAKRA STONES", sinergi: "12 SINERGI KRISTAL",
-  antique: "ANTIQUE", combination: "COMBINATION JEWELRY", loose: "LOOSE GEMSTONES",
-  rough: "ROUGH STONES", herkimer: "HERKIMER DIAMOND",
-} as Record<string,string>)[value] || value.toUpperCase();
 
 function card(p: Product) {
   const name = escape(p.name), image = escape(p.image), id = escape(p.id);
   const href = escape(p.url || "#pilihan");
-  return `<article class="product" data-id="${id}" data-category="${escape(p.category)}" data-name="${name}" data-price="${p.price}" data-image="${image}" data-best-seller="${p.bestSeller}">
+  const isBestSeller = p.categories.some(c => c.slug === BEST_SELLER_SLUG);
+  const slugs = p.categories.map(c => c.slug).join(",");
+  const eyebrow = p.categories
+    .filter(c => c.slug !== BEST_SELLER_SLUG)
+    .map(c => c.name.toUpperCase())
+    .join(" · ");
+  return `<article class="product" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-image="${image}">
     <div class="product-media"><a href="${href}"><img src="${image}" alt="${name}" loading="lazy"></a>
-      ${p.bestSeller ? '<span class="best-seller-badge">BEST SELLER</span>' : ""}
+      ${isBestSeller ? '<span class="best-seller-badge">BEST SELLER</span>' : ""}
       <button class="wish" type="button" aria-label="Simpan ${name}">♡</button></div>
-    <div class="product-info"><p>${escape(categoryName(p.category))}</p><h3><a href="${href}">${name}</a></h3>
+    <div class="product-info"><p>${escape(eyebrow)}</p><h3><a href="${href}">${name}</a></h3>
       <strong>${p.price}</strong><button class="add-button" type="button">Beli</button></div></article>`;
+}
+
+function filterButton(slug: string, name: string) {
+  return `<button class="filter" data-filter="${escape(slug)}">${escape(name.toUpperCase())}</button>`;
 }
 
 export async function GET() {
   try {
     const products = await listProducts();
+    const usedCategories = new Map<string, string>();
+    for (const product of products) {
+      for (const category of product.categories) {
+        if (!usedCategories.has(category.slug)) usedCategories.set(category.slug, category.name);
+      }
+    }
     const startMarker = '<div class="product-grid">';
     const endMarker = '\n      </div>\n    </section>';
     const start = storefrontHtml.indexOf(startMarker);
@@ -39,7 +50,8 @@ export async function GET() {
     let html = storefrontHtml.slice(0, start + startMarker.length)
       + products.map(card).join("") + storefrontHtml.slice(end);
     html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${products.length}</b>`);
-    html = html.replace('data-filter="all">Semua</button>', 'data-filter="all">Semua</button><button class="filter" data-filter="best">BEST SELLER</button>');
+    const filterButtons = [...usedCategories.entries()].map(([slug, name]) => filterButton(slug, name)).join("");
+    html = html.replace('data-filter="all">Semua</button>', `data-filter="all">Semua</button>${filterButtons}`);
     const catalog = JSON.stringify(products).replace(/</g, "\\u003c");
     html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog}</script>`);
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });

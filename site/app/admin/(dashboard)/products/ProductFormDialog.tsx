@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,22 +15,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import { CATEGORIES, EMPTY_PRODUCT, type Product } from "./types";
+import { BEST_SELLER_SLUG, EMPTY_PRODUCT, type Category, type Product } from "./types";
 
 export default function ProductFormDialog({
   open,
   onOpenChange,
   product,
+  categories,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: Product | null;
+  categories: Category[];
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<Product>(EMPTY_PRODUCT);
+  const [categoryIds, setCategoryIds] = useState<number[]>([]);
   const [gallery, setGallery] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -38,12 +41,20 @@ export default function ProductFormDialog({
     if (!open) return;
     const next = product ? { ...product, images: [...product.images] } : { ...EMPTY_PRODUCT };
     setForm(next);
+    setCategoryIds(next.categories.map((c) => c.id));
     setGallery(next.images.filter((url) => url !== next.image).join("\n"));
   }, [open, product]);
 
   function update<K extends keyof Product>(key: K, value: Product[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
+
+  function toggleCategory(id: number, checked: boolean) {
+    setCategoryIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  }
+
+  const bestSellerCategory = categories.find((c) => c.slug === BEST_SELLER_SLUG);
+  const isBestSeller = bestSellerCategory ? categoryIds.includes(bestSellerCategory.id) : false;
 
   async function upload(file: File | undefined) {
     if (!file) return;
@@ -73,6 +84,7 @@ export default function ProductFormDialog({
           .split("\n")
           .map((x) => x.trim())
           .filter(Boolean),
+        categoryIds,
       };
       const response = await fetch("/api/admin/products", {
         method: "POST",
@@ -124,19 +136,38 @@ export default function ProductFormDialog({
                 onChange={(e) => update("price", Number(e.target.value))}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="product-category">Kategori</Label>
-              <NativeSelect
-                id="product-category"
-                value={form.category}
-                onChange={(e) => update("category", e.target.value)}
-              >
-                {CATEGORIES.map(([value, label]) => (
-                  <NativeSelectOption key={value} value={value}>
-                    {label}
-                  </NativeSelectOption>
+            <div className="space-y-1.5 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Kategori</Label>
+                {bestSellerCategory && (
+                  <button
+                    type="button"
+                    title={isBestSeller ? "Lepas best seller" : "Jadikan best seller"}
+                    onClick={() => toggleCategory(bestSellerCategory.id, !isBestSeller)}
+                    className="flex items-center gap-1 text-xs font-medium text-accent-foreground"
+                  >
+                    <Star className={`size-4 ${isBestSeller ? "fill-current" : ""}`} />
+                    Best seller
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+                {categories.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Belum ada kategori.</p>
+                )}
+                {categories.map((category) => (
+                  <label key={category.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={categoryIds.includes(category.id)}
+                      onCheckedChange={(checked) => toggleCategory(category.id, checked === true)}
+                    />
+                    {category.slug === BEST_SELLER_SLUG && (
+                      <Star className="size-3.5 text-accent-foreground" />
+                    )}
+                    {category.name}
+                  </label>
                 ))}
-              </NativeSelect>
+              </div>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="product-description">Deskripsi</Label>
@@ -217,13 +248,6 @@ export default function ProductFormDialog({
                   onCheckedChange={(checked) => update("published", checked === true)}
                 />
                 Tampilkan di toko
-              </label>
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <Checkbox
-                  checked={form.bestSeller}
-                  onCheckedChange={(checked) => update("bestSeller", checked === true)}
-                />
-                Best seller
               </label>
             </div>
           </div>

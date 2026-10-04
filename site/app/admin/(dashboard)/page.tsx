@@ -1,6 +1,6 @@
 import { Eye, Package, ShieldCheck, Star, Users } from "lucide-react";
 import { db } from "@/db";
-import { listProducts } from "@/db/catalog";
+import { BEST_SELLER_SLUG, listProducts } from "@/db/catalog";
 import { roles, users } from "@/db/schema";
 import { getEffectivePermissionSlugs } from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
         <StatCard
           icon={Star}
           label="Best seller"
-          value={products.filter((p) => p.bestSeller).length}
+          value={products.filter((p) => p.categories.some((c) => c.slug === BEST_SELLER_SLUG)).length}
         />
         {totalUsers !== null && <StatCard icon={Users} label="Total user" value={totalUsers} />}
         {totalRoles !== null && (
