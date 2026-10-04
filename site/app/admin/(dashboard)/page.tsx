@@ -1,11 +1,18 @@
-import { Eye, Package, ShieldCheck, Star, Users } from "lucide-react";
+import { Eye, Package, ShieldCheck, ShoppingBag, Star, Users, Wallet } from "lucide-react";
 import { db } from "@/db";
 import { BEST_SELLER_SLUG, listProducts } from "@/db/catalog";
+import { listOrders } from "@/db/orders";
 import { roles, users } from "@/db/schema";
 import { getEffectivePermissionSlugs } from "@/lib/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
+
+const money = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+});
 
 function StatCard({
   icon: Icon,
@@ -14,7 +21,7 @@ function StatCard({
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  value: number;
+  value: number | string;
 }) {
   return (
     <Card>
@@ -41,6 +48,12 @@ export default async function DashboardPage() {
   const totalRoles = permissions.includes("roles.manage")
     ? (await db.select().from(roles)).length
     : null;
+  const orders = permissions.includes("orders.manage") ? await listOrders() : null;
+  const revenue = orders
+    ? orders
+        .filter((o) => o.status === "paid" || o.status === "shipped" || o.status === "completed")
+        .reduce((sum, o) => sum + o.total, 0)
+    : null;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -61,16 +74,25 @@ export default async function DashboardPage() {
           label="Best seller"
           value={products.filter((p) => p.categories.some((c) => c.slug === BEST_SELLER_SLUG)).length}
         />
+        {orders !== null && (
+          <StatCard icon={ShoppingBag} label="Total pesanan" value={orders.length} />
+        )}
         {totalUsers !== null && <StatCard icon={Users} label="Total user" value={totalUsers} />}
         {totalRoles !== null && (
           <StatCard icon={ShieldCheck} label="Total role" value={totalRoles} />
         )}
       </div>
-      <Card>
-        <CardContent className="text-sm text-muted-foreground">
-          Laporan pendapatan: belum ada data — sistem order/checkout belum aktif.
-        </CardContent>
-      </Card>
+      {revenue !== null ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard icon={Wallet} label="Pendapatan (lunas)" value={money.format(revenue)} />
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="text-sm text-muted-foreground">
+            Laporan pendapatan: belum ada data — sistem order/checkout belum aktif.
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

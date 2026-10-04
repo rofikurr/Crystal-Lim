@@ -284,3 +284,14 @@ document.addEventListener('keydown', event => {
 
 renderCart();
 refreshCatalog();
+
+const paymentParams = new URLSearchParams(location.search);
+if (paymentParams.has('payment')) {
+  const success = paymentParams.get('payment') === 'success';
+  const banner = document.createElement('div');
+  banner.className = 'announcement';
+  banner.setAttribute('role', 'status');
+  banner.innerHTML = `<strong>${success ? 'Pembayaran berhasil' : 'Pembayaran belum selesai'}</strong><span>${success ? 'Terima kasih sudah berbelanja di Crystal Lim!' : 'Silakan coba lagi dari keranjang.'}</span>`;
+  qs('.announcement').after(banner);
+  history.replaceState(null, '', location.pathname);
+}

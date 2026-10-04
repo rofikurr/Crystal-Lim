@@ -121,7 +121,6 @@
     <div class="checkout-layout">
       <form class="checkout-form">
         <p class="eyebrow">01 ALAMAT · 02 PENGIRIMAN · 03 PEMBAYARAN</p><h1>Selangkah lebih dekat.</h1>
-        <p class="integration-notice">Preview untuk peninjauan desain. Gunakan data contoh, bukan data pribadi. Formulir tidak dikirim; ongkir dan pembayaran belum aktif.</p>
         <fieldset><legend>01 / Alamat penerima</legend><div class="form-grid">
           <label>Nama lengkap<input name="name" autocomplete="name" maxlength="80" required></label>
           <label>Nomor WhatsApp<input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 ()-]{9,20}" maxlength="20" required></label>
@@ -134,23 +133,19 @@
           <label>Kode pos<input name="postal" inputmode="numeric" autocomplete="postal-code" pattern="[0-9]{5}" maxlength="5" placeholder="5 digit" required></label>
           <label>Catatan (opsional)<input name="notes" maxlength="200" placeholder="Contoh: titip ke resepsionis"></label>
         </div></fieldset>
-        <fieldset><legend>02 / Pilih pengiriman</legend>
-          <p class="shipping-help">Perhitungan ongkir melalui API akan tersedia setelah integrasi diaktifkan. Pada preview ini, data alamat tidak dikirim.</p>
-          <button class="quote-button" type="button">Cek ongkir &amp; kurir</button>
-          <p id="shipping-status" role="status">Isi alamat untuk memeriksa layanan pengiriman.</p>
-          <div id="shipping-options"></div>
+        <fieldset><legend>02 / Pengiriman</legend>
+          <p class="shipping-help">Ongkos kirim flat ke seluruh Indonesia: <strong id="shipping-fee-display">Rp0</strong></p>
         </fieldset>
         <fieldset><legend>03 / Pembayaran</legend>
-          <div class="payment-info"><b>Midtrans · mode uji coba</b><p>Pilihan metode akan muncul di halaman pembayaran Midtrans setelah ongkir dipilih. COD belum aktif.</p></div>
+          <div class="payment-info"><b>Xendit · pembayaran aman</b><p>Pilihan metode (Virtual Account, e-wallet, QRIS, kartu, dan lainnya) akan muncul di halaman pembayaran Xendit setelah klik lanjut.</p></div>
         </fieldset>
-        <button class="button primary place-order" type="submit" disabled>Lanjut ke pembayaran uji coba ↗</button>
+        <button class="button primary place-order" type="submit">Lanjut ke pembayaran ↗</button>
         <p id="payment-status" role="status"></p>
       </form>
       <aside class="order-summary"><h2>Ringkasan pesanan</h2><div class="summary-items"></div>
         <div class="summary-line"><span>Subtotal</span><strong class="summary-subtotal">Rp0</strong></div>
-        <div class="summary-line"><span>Ongkir</span><strong id="shipping-total">Belum dihitung</strong></div>
+        <div class="summary-line"><span>Ongkir</span><strong id="shipping-total">Rp0</strong></div>
         <div class="summary-line total"><span>Total</span><strong class="summary-total">Rp0</strong></div>
-        <p class="shipping-help">Tidak ada biaya ongkir perkiraan. Total diperbarui setelah tarif API tersedia.</p>
       </aside>
     </div>
   </section>

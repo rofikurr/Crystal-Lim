@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { BEST_SELLER_SLUG, listProducts, type Product } from "../db/catalog";
+import { getSetting } from "../db/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,12 @@ const storefrontHtml = readFileSync(
   path.join(process.cwd(), "app", "storefront.html"),
   "utf-8",
 );
+
+const rupiah = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+});
 
 const escape = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
@@ -36,6 +43,7 @@ function filterButton(slug: string, name: string) {
 export async function GET() {
   try {
     const products = await listProducts();
+    const shippingFlatFee = Number(await getSetting("shipping_flat_fee", "0"));
     const usedCategories = new Map<string, string>();
     for (const product of products) {
       for (const category of product.categories) {
@@ -52,8 +60,9 @@ export async function GET() {
     html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${products.length}</b>`);
     const filterButtons = [...usedCategories.entries()].map(([slug, name]) => filterButton(slug, name)).join("");
     html = html.replace('data-filter="all">Semua</button>', `data-filter="all">Semua</button>${filterButtons}`);
+    html = html.replace('<strong id="shipping-fee-display">Rp0</strong>', `<strong id="shipping-fee-display">${rupiah.format(shippingFlatFee)}</strong>`);
     const catalog = JSON.stringify(products).replace(/</g, "\\u003c");
-    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog}</script>`);
+    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee}};</script>`);
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   } catch (error) {
     console.error("Storefront unavailable", error);
