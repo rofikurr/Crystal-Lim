@@ -21,10 +21,11 @@ export default function LoginForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json()) as { error?: string; roleSlug?: string };
       if (!response.ok) throw new Error(data.error || "Gagal masuk.");
       const returnTo = params.get("return_to");
-      router.replace(returnTo && returnTo.startsWith("/") ? returnTo : "/admin");
+      const fallback = data.roleSlug === "user" ? "/user/dashboard" : "/admin";
+      router.replace(returnTo && returnTo.startsWith("/") ? returnTo : fallback);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal masuk.");
@@ -41,6 +42,7 @@ export default function LoginForm() {
           type="email"
           required
           autoComplete="username"
+          placeholder="nama@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -51,6 +53,7 @@ export default function LoginForm() {
           type="password"
           required
           autoComplete="current-password"
+          placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />

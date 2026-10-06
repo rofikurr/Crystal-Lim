@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getEffectivePermissionSlugs, getEffectiveUser } from "@/lib/auth/permissions";
 import AdminSidebar from "./AdminSidebar";
 import AdminTopbar from "./AdminTopbar";
-import "@/app/admin/admin.css";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +11,12 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await getEffectiveUser();
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/login");
+  if (user.effectiveRoleSlug === "user") redirect("/user/dashboard");
   const permissions = await getEffectivePermissionSlugs();
 
   return (
-    <div className="admin-shell">
+    <div className="min-h-screen bg-background">
       <AdminTopbar
         user={{
           name: user.name,
@@ -28,9 +28,9 @@ export default async function DashboardLayout({
           viewingAs: user.viewingAs,
         }}
       />
-      <div className="admin-layout">
+      <div className="flex">
         <AdminSidebar permissions={permissions} />
-        <main className="admin-main">{children}</main>
+        <main className="min-w-0 flex-1 p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
