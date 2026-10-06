@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { BEST_SELLER_SLUG, listProducts, type Product } from "../db/catalog";
 import { getSetting } from "../db/settings";
+import { getEffectiveUser } from "../lib/auth/permissions";
+import { listAddresses } from "../db/addresses";
+import { listWishlistProductIds } from "../db/wishlist";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +43,10 @@ function filterButton(slug: string, name: string) {
   return `<button class="filter" data-filter="${escape(slug)}">${escape(name.toUpperCase())}</button>`;
 }
 
+function categoryMenuLink(slug: string, name: string) {
+  return `<a href="#pilihan" data-filter="${escape(slug)}">${escape(name.toUpperCase())}</a>`;
+}
+
 const unavailablePage = `<!doctype html><html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Crystal Lim</title>
@@ -66,6 +73,24 @@ export async function GET() {
         console.error("Pengaturan ongkir gagal dimuat, pakai default 0", error);
         return 0;
       });
+
+    const effectiveUser = await getEffectiveUser().catch((error) => {
+      console.error("Sesi pengguna gagal dibaca", error);
+      return null;
+    });
+    const [userAddresses, userWishlist] = effectiveUser
+      ? await Promise.all([
+          listAddresses(effectiveUser.id).catch(() => []),
+          listWishlistProductIds(effectiveUser.id).catch(() => []),
+        ])
+      : [[], []];
+    const crystalUser = {
+      loggedIn: Boolean(effectiveUser),
+      name: effectiveUser?.name ?? "",
+      wishlist: userWishlist,
+      addresses: userAddresses,
+    };
+
     const usedCategories = new Map<string, string>();
     for (const product of products) {
       for (const category of product.categories) {
@@ -83,8 +108,24 @@ export async function GET() {
     const filterButtons = [...usedCategories.entries()].map(([slug, name]) => filterButton(slug, name)).join("");
     html = html.replace('data-filter="all">Semua</button>', `data-filter="all">Semua</button>${filterButtons}`);
     html = html.replace('<strong id="shipping-fee-display">Rp0</strong>', `<strong id="shipping-fee-display">${rupiah.format(shippingFlatFee)}</strong>`);
+
+    const categoryLinks = [...usedCategories.entries()].map(([slug, name]) => categoryMenuLink(slug, name)).join("");
+    html = html.replace('<div class="category-menu" hidden></div>', `<div class="category-menu" hidden>${categoryLinks}</div>`);
+    html = html.replace('<div class="menu-category-list" id="mobile-category-list"></div>', `<div class="menu-category-list" id="mobile-category-list">${categoryLinks}</div>`);
+
+    const accountLabel = crystalUser.loggedIn ? `Hai, ${crystalUser.name}` : "Masuk";
+    html = html.replace(
+      'class="icon-button account-button" type="button" aria-label="Masuk" title="Masuk" aria-expanded="false"',
+      `class="icon-button account-button${crystalUser.loggedIn ? " logged-in" : ""}" type="button" aria-label="${escape(accountLabel)}" title="${escape(accountLabel)}" aria-expanded="false"`,
+    );
+    const accountMenuHtml = crystalUser.loggedIn
+      ? `<a href="/user/dashboard">Akun Saya</a><a href="/user/alamat">Alamat Saya</a><a href="/user/wishlist">Wishlist</a><a href="#" id="account-signout">Keluar</a>`
+      : `<a href="/login">Masuk</a><a href="/daftar">Daftar</a>`;
+    html = html.replace('<div class="category-menu" id="account-menu" hidden></div>', `<div class="category-menu" id="account-menu" hidden>${accountMenuHtml}</div>`);
+
     const catalog = JSON.stringify(products).replace(/</g, "\\u003c");
-    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee}};</script>`);
+    const userData = JSON.stringify(crystalUser).replace(/</g, "\\u003c");
+    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee}};window.crystalUser=${userData};</script>`);
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   } catch (error) {
     console.error("Storefront unavailable", error);

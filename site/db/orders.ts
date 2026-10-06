@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { orderItems, orders } from "./schema";
 import { listProducts } from "./catalog";
@@ -36,6 +36,32 @@ export class CheckoutError extends Error {}
 
 export async function listOrders(): Promise<Order[]> {
   const orderRows = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  if (orderRows.length === 0) return [];
+  const itemRows = await db
+    .select()
+    .from(orderItems)
+    .where(inArray(orderItems.orderId, orderRows.map((o) => o.id)));
+  const itemsByOrder = new Map<string, OrderItem[]>();
+  for (const row of itemRows) {
+    const list = itemsByOrder.get(row.orderId) ?? [];
+    list.push({
+      productId: row.productId,
+      productName: row.productName,
+      productImage: row.productImage,
+      unitPrice: row.unitPrice,
+      quantity: row.quantity,
+    });
+    itemsByOrder.set(row.orderId, list);
+  }
+  return orderRows.map((row) => ({ ...row, items: itemsByOrder.get(row.id) ?? [] }));
+}
+
+export async function listOrdersForCustomer(email: string, phone: string): Promise<Order[]> {
+  const orderRows = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.customerEmail, email), eq(orders.customerPhone, phone)))
+    .orderBy(desc(orders.createdAt));
   if (orderRows.length === 0) return [];
   const itemRows = await db
     .select()

@@ -11,7 +11,8 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await getEffectiveUser();
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/login");
+  if (user.effectiveRoleSlug === "user") redirect("/user/dashboard");
   const permissions = await getEffectivePermissionSlugs();
 
   return (

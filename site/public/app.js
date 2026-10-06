@@ -184,11 +184,26 @@ qsa('.category-card').forEach(card => card.addEventListener('click', () => {
   if (target) target.click();
 }));
 
-qsa('.wish').forEach(button => { button.setAttribute('aria-pressed', 'false'); button.addEventListener('click', () => {
-  button.classList.toggle('saved');
-  button.setAttribute('aria-pressed', String(button.classList.contains('saved')));
-  button.textContent = button.classList.contains('saved') ? '♥' : '♡';
-}); });
+const wishlist = new Set(window.crystalUser?.wishlist || []);
+qsa('.wish').forEach(button => {
+  const product = button.closest('.product');
+  const productId = product?.dataset.id;
+  const saved = productId && wishlist.has(productId);
+  button.classList.toggle('saved', Boolean(saved));
+  button.setAttribute('aria-pressed', String(Boolean(saved)));
+  button.textContent = saved ? '♥' : '♡';
+  button.addEventListener('click', async () => {
+    if (!productId) return;
+    if (!window.crystalUser?.loggedIn) { location.href = '/login'; return; }
+    const nowSaved = !button.classList.contains('saved');
+    button.classList.toggle('saved', nowSaved);
+    button.setAttribute('aria-pressed', String(nowSaved));
+    button.textContent = nowSaved ? '♥' : '♡';
+    try {
+      await fetch(`/api/user/wishlist/${encodeURIComponent(productId)}`, { method: nowSaved ? 'POST' : 'DELETE' });
+    } catch { /* biarkan tampilan optimistik, gagal diam-diam */ }
+  });
+});
 
 const categoryToggle = qs('.category-toggle');
 const categoryMenu = qs('.category-menu');
@@ -197,6 +212,54 @@ categoryToggle?.addEventListener('click', () => {
   categoryMenu.hidden = !willOpen;
   categoryToggle.setAttribute('aria-expanded', String(willOpen));
 });
+
+const accountButton = qs('.account-button');
+const accountMenu = qs('#account-menu');
+accountButton?.addEventListener('click', () => {
+  if (!window.crystalUser?.loggedIn) { location.href = '/login'; return; }
+  const willOpen = accountMenu.hidden;
+  accountMenu.hidden = !willOpen;
+  accountButton.setAttribute('aria-expanded', String(willOpen));
+});
+qs('#account-signout')?.addEventListener('click', async event => {
+  event.preventDefault();
+  await fetch('/api/auth/logout', { method: 'POST' });
+  location.href = '/';
+});
+
+qsa('.category-menu a[data-filter], .menu-category-list a[data-filter]').forEach(link => {
+  link.addEventListener('click', event => {
+    event.preventDefault();
+    closeMobileMenu();
+    categoryMenu.hidden = true;
+    categoryToggle?.setAttribute('aria-expanded', 'false');
+    qs(`.filter[data-filter="${link.dataset.filter}"]`)?.click();
+    qs('#pilihan')?.scrollIntoView({ block: 'start' });
+  });
+});
+
+qs('.newsletter-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const status = qs('#newsletter-status');
+  const email = event.target.elements.email.value;
+  status.textContent = 'Mendaftarkan…';
+  try {
+    const response = await fetch('/api/newsletter', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Pendaftaran gagal.');
+    status.textContent = 'Terima kasih sudah berlangganan!';
+    event.target.reset();
+  } catch (error) {
+    status.textContent = error.message || 'Pendaftaran gagal. Coba lagi.';
+  }
+});
+
+qs('.open-cart')?.addEventListener('click', event => { event.preventDefault(); closeMobileMenu(); openDrawer(); });
+qs('.open-checkout')?.addEventListener('click', event => { event.preventDefault(); closeMobileMenu(); openDrawer(); if (cart.length) openCheckout(); });
 
 const slides = qsa('.hero-slide');
 const dots = qsa('.slider-dots button');

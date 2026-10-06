@@ -76,3 +76,4 @@ Catatan status pengerjaan setelah handoff awal (`START-HERE.md`), diurutkan per 
 - [ ] Sistem order/checkout (nunggu keputusan bisnis: kurir, COD, payment gateway)
 - [ ] Sinkronisasi dengan katalog lama WooCommerce (`crystal-lim.com`)
 - [ ] Deploy ke Hostinger (masih di Vercel + Aiven untuk tahap preview)
+- [ ] Login pelanggan pakai Google (OAuth) — untuk sekarang baru email/password

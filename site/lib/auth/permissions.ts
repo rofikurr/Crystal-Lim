@@ -7,6 +7,7 @@ export type CurrentUser = {
   id: number;
   name: string;
   email: string;
+  phone: string | null;
   roleId: number;
   roleSlug: string;
   roleName: string;
@@ -27,6 +28,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       id: users.id,
       name: users.name,
       email: users.email,
+      phone: users.phone,
       status: users.status,
       roleId: roles.id,
       roleSlug: roles.slug,
@@ -45,6 +47,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     id: row.id,
     name: row.name,
     email: row.email,
+    phone: row.phone,
     roleId: row.roleId,
     roleSlug: row.roleSlug,
     roleName: row.roleName,

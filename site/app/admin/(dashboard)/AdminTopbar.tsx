@@ -40,7 +40,7 @@ export default function AdminTopbar({ user }: { user: TopbarUser }) {
 
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
+    window.location.href = "/login";
   }
 
   async function switchViewAs(roleSlug: string) {

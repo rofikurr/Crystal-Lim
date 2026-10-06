@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import LoginForm from "./LoginForm";
 import "@/app/admin/admin.css";
 
-export default function AdminLoginPage() {
+export default function LoginPage() {
   return (
     <main className="admin-login">
       <div className="admin-login-card">
@@ -16,11 +16,14 @@ export default function AdminLoginPage() {
           className="admin-login-logo"
           priority
         />
-        <h1>Masuk Admin</h1>
-        <p>Panel pengelolaan toko Crystal Lim.</p>
+        <h1>Masuk ke Crystal Lim</h1>
+        <p>Masuk ke akun kamu untuk lanjut.</p>
         <Suspense fallback={null}>
           <LoginForm />
         </Suspense>
+        <p style={{ marginTop: 16, fontSize: 13 }}>
+          Belum punya akun? <Link href="/daftar">Daftar</Link>
+        </p>
         <Link className="admin-login-back" href="/">
           ← Kembali ke toko
         </Link>

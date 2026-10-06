@@ -140,3 +140,34 @@ export const settings = mysqlTable("settings", {
   key: varchar("key", { length: 64 }).primaryKey(),
   value: text("value").notNull(),
 });
+
+// --- Akun pelanggan: alamat tersimpan & wishlist ---
+
+export const addresses = mysqlTable("addresses", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  label: varchar("label", { length: 40 }).notNull(),
+  recipientName: varchar("recipient_name", { length: 140 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  province: varchar("province", { length: 80 }).notNull(),
+  city: varchar("city", { length: 80 }).notNull(),
+  district: varchar("district", { length: 80 }).notNull(),
+  village: varchar("village", { length: 80 }).notNull(),
+  address: text("address").notNull(),
+  postal: varchar("postal", { length: 5 }).notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+});
+
+export const wishlistItems = mysqlTable(
+  "wishlist_items",
+  {
+    userId: int("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: varchar("product_id", { length: 64 }).notNull(),
+    createdAt: datetime("created_at", { mode: "string" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.productId] })],
+);

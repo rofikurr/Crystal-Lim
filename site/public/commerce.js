@@ -20,8 +20,8 @@
     qs(target)?.scrollIntoView({block:'start'});
   }
   window.addEventListener('catalog:navigate', event => navigateCatalog(event.detail));
-  qsa('a[href="#top"],a[href="#pilihan"],a[href="https://crystal-lim.com/"],a[href="https://crystal-lim.com/product-category/produk-terbaru/"]').forEach(link => {
-    link.addEventListener('click', event => { event.preventDefault(); navigateCatalog(link.getAttribute('href').includes('produk-terbaru') || link.hash === '#pilihan' ? '#pilihan' : '#top'); });
+  qsa('a[href="#top"],a[href="#pilihan"]').forEach(link => {
+    link.addEventListener('click', event => { event.preventDefault(); navigateCatalog(link.hash === '#pilihan' ? '#pilihan' : '#top'); });
   });
   function openDetail(product, source) {
     opener = source; previousScroll = window.scrollY; activeProduct = product;
@@ -61,6 +61,20 @@
     qsa('.add-button,.product-media > a,.product-info h3 > a',card).forEach(el=>el.addEventListener('click',event=>{event.preventDefault();openDetail(product,el);}));
   });
   document.addEventListener('keydown',event=>{if(!event.defaultPrevented&&event.key==='Escape'&&!detail.hidden&&!checkout.classList.contains('open')&&!drawer.classList.contains('open')) closeDetail();});
+  const savedAddresses = window.crystalUser?.addresses || [];
+  if (savedAddresses.length) {
+    const wrap = qs('#saved-addresses');
+    wrap.hidden = false;
+    wrap.innerHTML = `<p class="shipping-help">Pakai alamat tersimpan:</p><div class="saved-address-options">${savedAddresses.map((a,i)=>`<button type="button" class="saved-address-option" data-index="${i}">${esc(a.label)}</button>`).join('')}</div>`;
+    qsa('.saved-address-option', wrap).forEach(button => button.addEventListener('click', () => {
+      const addr = savedAddresses[Number(button.dataset.index)];
+      const formEl = qs('.checkout-form');
+      for (const key of ['recipientName','phone','province','city','district','village','address','postal']) {
+        const field = key === 'recipientName' ? 'name' : key;
+        if (formEl.elements[field]) formEl.elements[field].value = addr[key];
+      }
+    }));
+  }
   const form=qs('.checkout-form'), payStatus=qs('#payment-status'), payButton=qs('.place-order');
   let paying=false, paymentController=null;
   const items=()=>Object.values(cart.reduce((all,p)=>{const id=p.id||products.find(x=>x.name===p.name)?.id;if(!all[id])all[id]={id,quantity:0};all[id].quantity++;return all;},{}));
