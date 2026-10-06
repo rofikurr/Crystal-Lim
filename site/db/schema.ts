@@ -171,3 +171,22 @@ export const wishlistItems = mysqlTable(
   },
   (table) => [primaryKey({ columns: [table.userId, table.productId] })],
 );
+
+// --- Broadcast email (newsletter, dikirim lewat SMTP sendiri) ---
+
+export const newsletterSubscribers = mysqlTable("newsletter_subscribers", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  unsubscribeToken: varchar("unsubscribe_token", { length: 64 }).notNull().unique(),
+  subscribedAt: datetime("subscribed_at", { mode: "string" }).notNull(),
+  unsubscribedAt: datetime("unsubscribed_at", { mode: "string" }),
+});
+
+export const broadcasts = mysqlTable("broadcasts", {
+  id: int("id").autoincrement().primaryKey(),
+  subject: varchar("subject", { length: 200 }).notNull(),
+  body: text("body").notNull(),
+  recipientCount: int("recipient_count").notNull().default(0),
+  failedCount: int("failed_count").notNull().default(0),
+  createdAt: datetime("created_at", { mode: "string" }).notNull(),
+});

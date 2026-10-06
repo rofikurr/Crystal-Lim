@@ -7,6 +7,7 @@ import { nowForDb } from "../lib/db-time";
 const PERMISSIONS = [
   { slug: "products.manage", label: "Kelola produk (tambah/edit/hapus)", group: "Produk" },
   { slug: "orders.manage", label: "Kelola pesanan & ongkir", group: "Pesanan" },
+  { slug: "broadcast.manage", label: "Kelola & kirim broadcast email", group: "Pemasaran" },
   { slug: "revenue.view", label: "Lihat laporan pendapatan", group: "Keuangan" },
   { slug: "roles.manage", label: "Kelola role & permission", group: "Pengguna" },
   { slug: "users.manage", label: "Kelola pengguna", group: "Pengguna" },
@@ -14,7 +15,12 @@ const PERMISSIONS = [
 
 const ROLES = [
   { slug: "superadmin", name: "Super Admin", isSystem: true, permissionSlugs: [] as string[] },
-  { slug: "admin", name: "Admin", isSystem: false, permissionSlugs: ["products.manage", "orders.manage"] },
+  {
+    slug: "admin",
+    name: "Admin",
+    isSystem: false,
+    permissionSlugs: ["products.manage", "orders.manage", "broadcast.manage"],
+  },
   { slug: "user", name: "Pengguna", isSystem: false, permissionSlugs: [] },
 ];
 

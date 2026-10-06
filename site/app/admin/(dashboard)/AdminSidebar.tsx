@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, LayoutDashboard, Package, ShieldCheck, ShoppingBag, Users } from "lucide-react";
+import { ChevronDown, LayoutDashboard, Megaphone, Package, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
@@ -18,6 +18,7 @@ const ITEMS = [
     ],
   },
   { href: "/admin/orders", label: "Pesanan", permission: "orders.manage", icon: ShoppingBag },
+  { href: "/admin/broadcast", label: "Broadcast Email", permission: "broadcast.manage", icon: Megaphone },
   { href: "/admin/users", label: "Manajemen User", permission: "users.manage", icon: Users },
   { href: "/admin/roles", label: "Role & Permission", permission: "roles.manage", icon: ShieldCheck },
 ] as const;
