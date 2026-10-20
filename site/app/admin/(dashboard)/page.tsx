@@ -1,18 +1,13 @@
 import { Eye, Package, ShieldCheck, ShoppingBag, Star, Users, Wallet } from "lucide-react";
-import { db } from "@/db";
 import { BEST_SELLER_SLUG, listProducts } from "@/db/catalog";
 import { listOrders } from "@/db/orders";
-import { roles, users } from "@/db/schema";
+import { countRoles } from "@/db/roles";
+import { countUsers } from "@/db/users";
 import { getEffectivePermissionSlugs } from "@/lib/auth/permissions";
+import { formatRupiah } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
-
-const money = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
 
 function StatCard({
   icon: Icon,
@@ -42,12 +37,8 @@ export default async function DashboardPage() {
   const permissions = await getEffectivePermissionSlugs();
   const products = await listProducts(true);
 
-  const totalUsers = permissions.includes("users.manage")
-    ? (await db.select().from(users)).length
-    : null;
-  const totalRoles = permissions.includes("roles.manage")
-    ? (await db.select().from(roles)).length
-    : null;
+  const totalUsers = permissions.includes("users.manage") ? await countUsers() : null;
+  const totalRoles = permissions.includes("roles.manage") ? await countRoles() : null;
   const orders = permissions.includes("orders.manage") ? await listOrders() : null;
   const revenue = orders
     ? orders
@@ -84,7 +75,7 @@ export default async function DashboardPage() {
       </div>
       {revenue !== null ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Wallet} label="Pendapatan (lunas)" value={money.format(revenue)} />
+          <StatCard icon={Wallet} label="Pendapatan (lunas)" value={formatRupiah(revenue)} />
         </div>
       ) : (
         <Card>

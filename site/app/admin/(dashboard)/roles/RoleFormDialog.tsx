@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { postJson } from "@/lib/api-client";
 import type { Permission } from "./types";
 
 export default function RoleFormDialog({
@@ -47,13 +48,7 @@ export default function RoleFormDialog({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = await fetch("/api/admin/roles", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug, name, permissionSlugs: selected }),
-      });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Role gagal dibuat.");
+      await postJson("/api/admin/roles", { slug, name, permissionSlugs: selected });
       toast.success("Role baru berhasil dibuat.");
       reset();
       onOpenChange(false);

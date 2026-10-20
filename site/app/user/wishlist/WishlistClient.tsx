@@ -5,6 +5,7 @@ import { Heart } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatRupiah } from "@/lib/format";
 
 type WishlistProduct = {
   id: string;
@@ -13,12 +14,6 @@ type WishlistProduct = {
   image: string;
   url: string;
 };
-
-const money = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
 
 export default function WishlistClient() {
   const [products, setProducts] = useState<WishlistProduct[]>([]);
@@ -73,7 +68,7 @@ export default function WishlistClient() {
                   className="aspect-square w-full rounded-md border border-border object-cover"
                 />
                 <p className="text-sm font-medium">{product.name}</p>
-                <p className="text-sm text-muted-foreground">{money.format(product.price)}</p>
+                <p className="text-sm text-muted-foreground">{formatRupiah(product.price)}</p>
                 <Button
                   variant="outline"
                   size="sm"

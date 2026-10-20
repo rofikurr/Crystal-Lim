@@ -1,6 +1,6 @@
 import { requirePermissionOrResponse } from "../../../../lib/auth/permissions";
 import { sameOrigin } from "../../../../lib/auth/session";
-import { getSetting, setSetting } from "../../../../db/settings";
+import { getNumericSetting, setSetting } from "../../../../db/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,7 @@ export async function GET() {
   const { response } = await requirePermissionOrResponse("orders.manage");
   if (response) return response;
   try {
-    const shippingFlatFee = Number(await getSetting("shipping_flat_fee", "0"));
+    const shippingFlatFee = await getNumericSetting("shipping_flat_fee", 0);
     return Response.json({ shippingFlatFee }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error(error);

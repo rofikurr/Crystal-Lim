@@ -1,3 +1,5 @@
+import { formatRupiah } from "../../../../lib/format";
+
 export type OrderStatus = "pending" | "paid" | "shipped" | "completed" | "cancelled" | "expired";
 
 export type OrderItem = {
@@ -35,8 +37,4 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   expired: "Kedaluwarsa",
 };
 
-export const money = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
+export const money = { format: formatRupiah };

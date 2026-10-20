@@ -1,13 +1,17 @@
-import { eq } from "drizzle-orm";
-import { db } from "../../../../db";
-import { roles, users } from "../../../../db/schema";
+import { findRoleBySlug } from "../../../../db/roles";
+import { createUser, findUserByEmail } from "../../../../db/users";
 import { hashPassword } from "../../../../lib/auth/password";
 import { sameOrigin, setSessionCookie } from "../../../../lib/auth/session";
 import { nowForDb } from "../../../../lib/db-time";
+import { getClientIp, isRateLimited, rateLimitResponse } from "../../../../lib/rate-limit";
+import { isValidEmail, isValidPhone } from "../../../../lib/validation";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) {
     return Response.json({ error: "Permintaan tidak valid." }, { status: 403 });
+  }
+  if (isRateLimited(`register:${getClientIp(request)}`, 5, 60 * 60 * 1000)) {
+    return rateLimitResponse();
   }
   let body: { name?: string; email?: string; phone?: string; password?: string };
   try {
@@ -23,8 +27,8 @@ export async function POST(request: Request) {
 
   if (
     !name || name.length > 140 ||
-    !email || email.length > 255 || !/^\S+@\S+\.\S+$/.test(email) ||
-    !phone || phone.length > 32 || !/^[+0-9 ()-]{9,20}$/.test(phone) ||
+    !email || email.length > 255 || !isValidEmail(email) ||
+    !phone || phone.length > 32 || !isValidPhone(phone) ||
     !password || password.length < 8
   ) {
     return Response.json(
@@ -34,18 +38,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [userRole] = await db.select().from(roles).where(eq(roles.slug, "user")).limit(1);
+    const userRole = await findRoleBySlug("user");
     if (!userRole) {
       return Response.json({ error: "Pendaftaran belum tersedia. Coba lagi nanti." }, { status: 503 });
     }
 
-    const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (existing[0]) {
+    const existing = await findUserByEmail(email);
+    if (existing) {
       return Response.json({ error: "Email sudah terdaftar." }, { status: 409 });
     }
 
     const now = nowForDb();
-    const [inserted] = await db.insert(users).values({
+    const id = await createUser({
       name,
       email,
       phone,
@@ -56,7 +60,7 @@ export async function POST(request: Request) {
       updatedAt: now,
     });
 
-    await setSessionCookie(inserted.insertId);
+    await setSessionCookie(id);
     return Response.json({ ok: true, roleSlug: "user" }, { status: 201 });
   } catch (error) {
     console.error(error);

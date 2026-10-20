@@ -1,4 +1,16 @@
+import { timingSafeEqual } from "node:crypto";
+
 export class XenditError extends Error {}
+
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    timingSafeEqual(bufA, bufA); // tetap lakukan perbandingan agar waktu respons tidak membocorkan panjang token
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
 
 export async function createInvoice(input: {
   externalId: string;
@@ -47,6 +59,7 @@ export async function createInvoice(input: {
 
 export function verifyCallbackToken(request: Request): boolean {
   const token = process.env.XENDIT_CALLBACK_TOKEN;
-  if (!token) return false;
-  return request.headers.get("x-callback-token") === token;
+  const received = request.headers.get("x-callback-token");
+  if (!token || !received) return false;
+  return safeEqual(received, token);
 }

@@ -1,6 +1,10 @@
-import { eq } from "drizzle-orm";
-import { db } from "../../../../../db";
-import { permissions, rolePermissions, roles, users } from "../../../../../db/schema";
+import {
+  countUsersWithRole,
+  deleteRole,
+  findRoleById,
+  renameRole,
+  setRolePermissions,
+} from "../../../../../db/roles";
 import { requirePermissionOrResponse } from "../../../../../lib/auth/permissions";
 import { sameOrigin } from "../../../../../lib/auth/session";
 
@@ -27,7 +31,7 @@ export async function PATCH(
   }
 
   try {
-    const [role] = await db.select().from(roles).where(eq(roles.id, roleId)).limit(1);
+    const role = await findRoleById(roleId);
     if (!role) return Response.json({ error: "Role tidak ditemukan." }, { status: 404 });
     if (role.isSystem) {
       return Response.json(
@@ -37,21 +41,10 @@ export async function PATCH(
     }
 
     if (typeof body.name === "string" && body.name.trim()) {
-      await db
-        .update(roles)
-        .set({ name: body.name.trim() })
-        .where(eq(roles.id, roleId));
+      await renameRole(roleId, body.name.trim());
     }
-
     if (Array.isArray(body.permissionSlugs)) {
-      const allPermissions = await db.select().from(permissions);
-      const matched = allPermissions.filter((p) => body.permissionSlugs!.includes(p.slug));
-      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
-      if (matched.length > 0) {
-        await db
-          .insert(rolePermissions)
-          .values(matched.map((p) => ({ roleId, permissionId: p.id })));
-      }
+      await setRolePermissions(roleId, body.permissionSlugs);
     }
 
     return Response.json({ ok: true });
@@ -77,24 +70,19 @@ export async function DELETE(
   }
 
   try {
-    const [role] = await db.select().from(roles).where(eq(roles.id, roleId)).limit(1);
+    const role = await findRoleById(roleId);
     if (!role) return Response.json({ error: "Role tidak ditemukan." }, { status: 404 });
     if (role.isSystem) {
       return Response.json({ error: "Role sistem tidak bisa dihapus." }, { status: 400 });
     }
-    const usersWithRole = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.roleId, roleId))
-      .limit(1);
-    if (usersWithRole.length > 0) {
+    const usersWithRole = await countUsersWithRole(roleId);
+    if (usersWithRole > 0) {
       return Response.json(
         { error: "Role masih dipakai oleh pengguna. Pindahkan pengguna itu dulu." },
         { status: 409 },
       );
     }
-    await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
-    await db.delete(roles).where(eq(roles.id, roleId));
+    await deleteRole(roleId);
     return Response.json({ ok: true });
   } catch (error) {
     console.error(error);

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { patchJson } from "@/lib/api-client";
+import { PHONE_PATTERN } from "@/lib/validation";
 
 export default function ProfileForm({
   initial,
@@ -22,17 +24,11 @@ export default function ProfileForm({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name,
-          phone,
-          ...(newPassword ? { currentPassword, newPassword } : {}),
-        }),
+      await patchJson("/api/user/profile", {
+        name,
+        phone,
+        ...(newPassword ? { currentPassword, newPassword } : {}),
       });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Profil gagal disimpan.");
       toast.success("Profil berhasil disimpan.");
       setCurrentPassword("");
       setNewPassword("");
@@ -61,7 +57,7 @@ export default function ProfileForm({
               id="profile-phone"
               required
               type="tel"
-              pattern="[+0-9 ()-]{9,20}"
+              pattern={PHONE_PATTERN.source}
               maxLength={20}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}

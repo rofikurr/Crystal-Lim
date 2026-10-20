@@ -15,6 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { patchJson, postJson } from "@/lib/api-client";
+import { PHONE_PATTERN, POSTAL_PATTERN } from "@/lib/validation";
 import { EMPTY_ADDRESS, type Address, type AddressInput } from "./types";
 
 export default function AddressFormDialog({
@@ -44,19 +46,11 @@ export default function AddressFormDialog({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = address
-        ? await fetch(`/api/user/addresses/${address.id}`, {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(form),
-          })
-        : await fetch("/api/user/addresses", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(form),
-          });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Alamat gagal disimpan.");
+      if (address) {
+        await patchJson(`/api/user/addresses/${address.id}`, form);
+      } else {
+        await postJson("/api/user/addresses", form);
+      }
       toast.success("Alamat tersimpan.");
       onOpenChange(false);
       onSaved();
@@ -103,7 +97,7 @@ export default function AddressFormDialog({
                 id="addr-phone"
                 required
                 type="tel"
-                pattern="[+0-9 ()-]{9,20}"
+                pattern={PHONE_PATTERN.source}
                 maxLength={20}
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
@@ -142,7 +136,7 @@ export default function AddressFormDialog({
                 id="addr-postal"
                 required
                 inputMode="numeric"
-                pattern="[0-9]{5}"
+                pattern={POSTAL_PATTERN.source}
                 maxLength={5}
                 placeholder="5 digit"
                 value={form.postal}

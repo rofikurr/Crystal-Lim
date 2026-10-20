@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { BEST_SELLER_SLUG, listProducts, type Product } from "../db/catalog";
-import { getSetting } from "../db/settings";
+import { getNumericSetting } from "../db/settings";
 import { getEffectiveUser } from "../lib/auth/permissions";
 import { listAddresses } from "../db/addresses";
 import { listWishlistProductIds } from "../db/wishlist";
+import { formatRupiah } from "../lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,6 @@ const storefrontHtml = readFileSync(
   path.join(process.cwd(), "app", "storefront.html"),
   "utf-8",
 );
-
-const rupiah = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
 
 const escape = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
@@ -67,12 +62,10 @@ export async function GET() {
       console.error("Katalog produk gagal dimuat, tampilkan etalase kosong", error);
       return [];
     });
-    const shippingFlatFee = await getSetting("shipping_flat_fee", "0")
-      .then(Number)
-      .catch((error) => {
-        console.error("Pengaturan ongkir gagal dimuat, pakai default 0", error);
-        return 0;
-      });
+    const shippingFlatFee = await getNumericSetting("shipping_flat_fee", 0).catch((error) => {
+      console.error("Pengaturan ongkir gagal dimuat, pakai default 0", error);
+      return 0;
+    });
 
     const effectiveUser = await getEffectiveUser().catch((error) => {
       console.error("Sesi pengguna gagal dibaca", error);
@@ -107,7 +100,7 @@ export async function GET() {
     html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${products.length}</b>`);
     const filterButtons = [...usedCategories.entries()].map(([slug, name]) => filterButton(slug, name)).join("");
     html = html.replace('data-filter="all">Semua</button>', `data-filter="all">Semua</button>${filterButtons}`);
-    html = html.replace('<strong id="shipping-fee-display">Rp0</strong>', `<strong id="shipping-fee-display">${rupiah.format(shippingFlatFee)}</strong>`);
+    html = html.replace('<strong id="shipping-fee-display">Rp0</strong>', `<strong id="shipping-fee-display">${formatRupiah(shippingFlatFee)}</strong>`);
 
     const categoryLinks = [...usedCategories.entries()].map(([slug, name]) => categoryMenuLink(slug, name)).join("");
     html = html.replace('<div class="category-menu" hidden></div>', `<div class="category-menu" hidden>${categoryLinks}</div>`);

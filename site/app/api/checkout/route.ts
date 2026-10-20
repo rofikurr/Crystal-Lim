@@ -1,7 +1,8 @@
 import { sameOrigin } from "../../../lib/auth/session";
 import { createOrder, setOrderInvoice, CheckoutError } from "../../../db/orders";
-import { getSetting } from "../../../db/settings";
+import { getNumericSetting } from "../../../db/settings";
 import { createInvoice, XenditError } from "../../../lib/xendit";
+import { isValidEmail, isValidPostalCode } from "../../../lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -31,13 +32,13 @@ export async function POST(request: Request) {
   const district = str(customer.district, 80);
   const village = str(customer.village, 80);
   const address = str(customer.address, 400);
-  const postal = typeof customer.postal === "string" && /^[0-9]{5}$/.test(customer.postal) ? customer.postal : null;
+  const postal = typeof customer.postal === "string" && isValidPostalCode(customer.postal) ? customer.postal : null;
   const notes = typeof customer.notes === "string" ? customer.notes.trim().slice(0, 200) : "";
   const items = Array.isArray(body.items) ? body.items : [];
 
   if (
     !name || !phone || !email || !province || !city || !district || !village || !address || !postal ||
-    !/^\S+@\S+\.\S+$/.test(email) ||
+    !isValidEmail(email) ||
     items.length === 0 || items.length > 20 ||
     items.some((item) => typeof item.id !== "string" || !Number.isInteger(item.quantity))
   ) {
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const shippingFee = Number(await getSetting("shipping_flat_fee", "0"));
+    const shippingFee = await getNumericSetting("shipping_flat_fee", 0);
     const shippingAddress = `${address}, ${village}, ${district}, ${city}, ${province} ${postal}`;
     const order = await createOrder({
       customerName: name,

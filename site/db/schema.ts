@@ -1,6 +1,7 @@
 import {
   boolean,
   datetime,
+  index,
   int,
   json,
   mysqlEnum,
@@ -98,31 +99,35 @@ export const users = mysqlTable("users", {
 
 // --- Checkout: pesanan & pembayaran (Xendit) ---
 
-export const orders = mysqlTable("orders", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  customerName: varchar("customer_name", { length: 140 }).notNull(),
-  customerEmail: varchar("customer_email", { length: 255 }).notNull(),
-  customerPhone: varchar("customer_phone", { length: 32 }).notNull(),
-  shippingAddress: text("shipping_address").notNull(),
-  notes: varchar("notes", { length: 200 }).notNull().default(""),
-  subtotal: int("subtotal").notNull(),
-  shippingFee: int("shipping_fee").notNull(),
-  total: int("total").notNull(),
-  status: mysqlEnum("status", [
-    "pending",
-    "paid",
-    "shipped",
-    "completed",
-    "cancelled",
-    "expired",
-  ])
-    .notNull()
-    .default("pending"),
-  xenditInvoiceId: varchar("xendit_invoice_id", { length: 120 }).notNull().default(""),
-  xenditInvoiceUrl: varchar("xendit_invoice_url", { length: 800 }).notNull().default(""),
-  createdAt: datetime("created_at", { mode: "string" }).notNull(),
-  updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
-});
+export const orders = mysqlTable(
+  "orders",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    customerName: varchar("customer_name", { length: 140 }).notNull(),
+    customerEmail: varchar("customer_email", { length: 255 }).notNull(),
+    customerPhone: varchar("customer_phone", { length: 32 }).notNull(),
+    shippingAddress: text("shipping_address").notNull(),
+    notes: varchar("notes", { length: 200 }).notNull().default(""),
+    subtotal: int("subtotal").notNull(),
+    shippingFee: int("shipping_fee").notNull(),
+    total: int("total").notNull(),
+    status: mysqlEnum("status", [
+      "pending",
+      "paid",
+      "shipped",
+      "completed",
+      "cancelled",
+      "expired",
+    ])
+      .notNull()
+      .default("pending"),
+    xenditInvoiceId: varchar("xendit_invoice_id", { length: 120 }).notNull().default(""),
+    xenditInvoiceUrl: varchar("xendit_invoice_url", { length: 800 }).notNull().default(""),
+    createdAt: datetime("created_at", { mode: "string" }).notNull(),
+    updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
+  },
+  (table) => [index("orders_customer_idx").on(table.customerEmail, table.customerPhone)],
+);
 
 export const orderItems = mysqlTable("order_items", {
   id: int("id").autoincrement().primaryKey(),

@@ -1,3 +1,5 @@
+import { formatRupiah } from "../../../../lib/format";
+
 export type CategoryRef = { id: number; slug: string; name: string };
 
 export type Category = CategoryRef & { isSystem: boolean; position: number };
@@ -37,8 +39,4 @@ export const EMPTY_PRODUCT: Product = {
 export const isBestSeller = (product: Product) =>
   product.categories.some((c) => c.slug === BEST_SELLER_SLUG);
 
-export const money = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
+export const money = { format: formatRupiah };

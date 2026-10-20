@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { patchJson, postJson } from "@/lib/api-client";
 import type { Category } from "../types";
 
 export default function CategoryFormDialog({
@@ -42,19 +43,11 @@ export default function CategoryFormDialog({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = category
-        ? await fetch(`/api/admin/products/categories/${category.id}`, {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name, position }),
-          })
-        : await fetch("/api/admin/products/categories", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name, position }),
-          });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Kategori gagal disimpan.");
+      if (category) {
+        await patchJson(`/api/admin/products/categories/${category.id}`, { name, position });
+      } else {
+        await postJson("/api/admin/products/categories", { name, position });
+      }
       toast.success(category ? "Kategori diperbarui." : "Kategori baru dibuat.");
       onOpenChange(false);
       onSaved();

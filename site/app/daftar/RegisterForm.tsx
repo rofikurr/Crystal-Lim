@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { PHONE_PATTERN } from "@/lib/validation";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function RegisterForm() {
         <input
           type="tel"
           required
-          pattern="[+0-9 ()-]{9,20}"
+          pattern={PHONE_PATTERN.source}
           maxLength={20}
           autoComplete="tel"
           value={phone}

@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { postJson } from "@/lib/api-client";
 import type { RoleOption } from "./types";
 
 export default function UserFormDialog({
@@ -44,13 +45,7 @@ export default function UserFormDialog({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, email, password, roleId: Number(roleId) }),
-      });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "User gagal dibuat.");
+      await postJson("/api/admin/users", { name, email, password, roleId: Number(roleId) });
       toast.success("User baru berhasil dibuat.");
       reset();
       onOpenChange(false);

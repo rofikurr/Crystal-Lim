@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { postJson } from "@/lib/api-client";
 import { BEST_SELLER_SLUG, EMPTY_PRODUCT, type Category, type Product } from "./types";
 
 export default function ProductFormDialog({
@@ -86,13 +87,7 @@ export default function ProductFormDialog({
           .filter(Boolean),
         categoryIds,
       };
-      const response = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = (await response.json()) as { error?: string; product: Product };
-      if (!response.ok) throw new Error(data.error || "Produk gagal disimpan.");
+      const data = await postJson<{ product: Product }>("/api/admin/products", payload);
       toast.success(`${data.product.name} berhasil disimpan.`);
       onOpenChange(false);
       onSaved();
