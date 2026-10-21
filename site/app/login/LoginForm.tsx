@@ -9,6 +9,7 @@ const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   google_failed: "Login Google gagal. Coba lagi.",
   google_unverified: "Email Google kamu belum terverifikasi. Pakai email & kata sandi dulu.",
   google_suspended: "Akun ini dinonaktifkan. Hubungi admin.",
+  google_already_registered: "Email ini sudah terdaftar. Silakan masuk dengan Google di bawah.",
 };
 
 function GoogleLogo() {
@@ -33,7 +34,9 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
   const [busy, setBusy] = useState(false);
 
   const returnTo = params.get("return_to");
-  const googleHref = `/api/auth/google${returnTo && returnTo.startsWith("/") ? `?return_to=${encodeURIComponent(returnTo)}` : ""}`;
+  const googleParams = new URLSearchParams({ intent: "login" });
+  if (returnTo && returnTo.startsWith("/")) googleParams.set("return_to", returnTo);
+  const googleHref = `/api/auth/google?${googleParams.toString()}`;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();

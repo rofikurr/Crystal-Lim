@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import {
   exchangeGoogleCode,
   GoogleOAuthError,
+  GOOGLE_OAUTH_INTENT_COOKIE,
   GOOGLE_OAUTH_RETURN_TO_COOKIE,
   GOOGLE_OAUTH_STATE_COOKIE,
   originFromRequest,
@@ -26,8 +27,10 @@ export async function GET(request: Request) {
   const store = await cookies();
   const expectedState = store.get(GOOGLE_OAUTH_STATE_COOKIE)?.value;
   const returnTo = store.get(GOOGLE_OAUTH_RETURN_TO_COOKIE)?.value;
+  const intent = store.get(GOOGLE_OAUTH_INTENT_COOKIE)?.value === "register" ? "register" : "login";
   store.set(GOOGLE_OAUTH_STATE_COOKIE, "", { path: "/", maxAge: 0 });
   store.set(GOOGLE_OAUTH_RETURN_TO_COOKIE, "", { path: "/", maxAge: 0 });
+  store.set(GOOGLE_OAUTH_INTENT_COOKIE, "", { path: "/", maxAge: 0 });
 
   if (!code || !state || !expectedState || state !== expectedState) {
     return Response.redirect(`${origin}/login?error=google_failed`);
@@ -45,12 +48,21 @@ export async function GET(request: Request) {
     let roleSlug: string;
 
     if (existing) {
+      if (intent === "register") {
+        // Sudah punya akun — jangan buat dobel, arahkan untuk masuk biasa.
+        return Response.redirect(`${origin}/login?error=google_already_registered`);
+      }
       if (existing.status === "suspended") {
         return Response.redirect(`${origin}/login?error=google_suspended`);
       }
       userId = existing.id;
       roleSlug = existing.roleSlug;
     } else {
+      if (intent === "login") {
+        // Belum punya akun — jangan auto-daftar diam-diam, arahkan ke halaman
+        // daftar (yang juga punya tombol "Daftar dengan Google" sendiri).
+        return Response.redirect(`${origin}/daftar?notice=google_not_registered&email=${encodeURIComponent(googleUser.email)}`);
+      }
       const userRole = await findRoleBySlug("user");
       if (!userRole) {
         return Response.redirect(`${origin}/login?error=google_failed`);

@@ -2,10 +2,12 @@ import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import {
   buildGoogleAuthUrl,
+  GOOGLE_OAUTH_INTENT_COOKIE,
   GOOGLE_OAUTH_RETURN_TO_COOKIE,
   GOOGLE_OAUTH_STATE_COOKIE,
   isGoogleOAuthConfigured,
   originFromRequest,
+  type GoogleOAuthIntent,
 } from "../../../../lib/auth/google";
 import { getClientIp, isRateLimited, rateLimitResponse } from "../../../../lib/rate-limit";
 
@@ -28,10 +30,14 @@ export async function GET(request: Request) {
   };
   store.set(GOOGLE_OAUTH_STATE_COOKIE, state, cookieOptions);
 
-  const returnTo = new URL(request.url).searchParams.get("return_to");
+  const params = new URL(request.url).searchParams;
+  const returnTo = params.get("return_to");
   if (returnTo && returnTo.startsWith("/")) {
     store.set(GOOGLE_OAUTH_RETURN_TO_COOKIE, returnTo, cookieOptions);
   }
+
+  const intent: GoogleOAuthIntent = params.get("intent") === "register" ? "register" : "login";
+  store.set(GOOGLE_OAUTH_INTENT_COOKIE, intent, cookieOptions);
 
   const redirectUri = `${originFromRequest(request)}/api/auth/google/callback`;
   return Response.redirect(buildGoogleAuthUrl(redirectUri, state));

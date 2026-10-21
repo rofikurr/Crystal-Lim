@@ -8,6 +8,9 @@ export function isGoogleOAuthConfigured(): boolean {
 
 export const GOOGLE_OAUTH_STATE_COOKIE = "google_oauth_state";
 export const GOOGLE_OAUTH_RETURN_TO_COOKIE = "google_oauth_return_to";
+export const GOOGLE_OAUTH_INTENT_COOKIE = "google_oauth_intent";
+
+export type GoogleOAuthIntent = "login" | "register";
 
 /**
  * Bangun origin dari header Host, bukan `request.url` — saat server di-bind

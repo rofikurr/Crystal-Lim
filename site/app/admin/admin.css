@@ -37,6 +37,7 @@
 .login-form .admin-primary:hover:not(:disabled){background:#967037}
 .login-form .admin-primary:active:not(:disabled){transform:scale(.98)}
 .login-error{background:#fbeceb;border:1px solid #e3b6b0;color:#a04135;padding:10px 12px;font-size:13px;margin:0;text-align:left}
+.login-notice{background:#f5eedf;border:1px solid #dcc89e;color:#7a5f2f;padding:10px 12px;font-size:13px;margin:0;text-align:left;line-height:1.4}
 .admin-login-back{margin-top:26px;font-size:13px;color:#948c7c;text-decoration:none}
 .admin-login-back:hover{color:#a38145;text-decoration:underline}
 .login-divider{display:flex;align-items:center;gap:12px;margin:4px 0;color:#948c7c;font-size:12px}

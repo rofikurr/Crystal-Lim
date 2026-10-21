@@ -2,7 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import RegisterForm from "./RegisterForm";
+import { isGoogleOAuthConfigured } from "@/lib/auth/google";
 import "@/app/admin/admin.css";
+
+// Sama seperti /login — tanpa ini status GOOGLE_CLIENT_ID/SECRET "terbeku"
+// di HTML hasil pre-render saat build.
+export const dynamic = "force-dynamic";
 
 export default function DaftarPage() {
   return (
@@ -19,7 +24,7 @@ export default function DaftarPage() {
         <h1>Daftar akun Crystal Lim</h1>
         <p>Buat akun untuk menyimpan riwayat pembelian kamu.</p>
         <Suspense fallback={null}>
-          <RegisterForm />
+          <RegisterForm googleEnabled={isGoogleOAuthConfigured()} />
         </Suspense>
         <p style={{ marginTop: 16, fontSize: 13 }}>
           Sudah punya akun? <Link href="/login">Masuk</Link>
