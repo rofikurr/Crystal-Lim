@@ -23,6 +23,7 @@ export type Order = {
   status: OrderStatus;
   xenditInvoiceId: string;
   xenditInvoiceUrl: string;
+  trackingNumber: string;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];

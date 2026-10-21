@@ -5,7 +5,7 @@ import { getNumericSetting } from "../db/settings";
 import { getEffectiveUser } from "../lib/auth/permissions";
 import { listAddresses } from "../db/addresses";
 import { listWishlistProductIds } from "../db/wishlist";
-import { formatRupiah } from "../lib/format";
+import { getShippingMode } from "../lib/shipping";
 
 export const dynamic = "force-dynamic";
 
@@ -21,17 +21,19 @@ function card(p: Product) {
   const name = escape(p.name), image = escape(p.image), id = escape(p.id);
   const href = escape(p.url || "#pilihan");
   const isBestSeller = p.categories.some(c => c.slug === BEST_SELLER_SLUG);
+  const outOfStock = p.stock <= 0;
   const slugs = p.categories.map(c => c.slug).join(",");
   const eyebrow = p.categories
     .filter(c => c.slug !== BEST_SELLER_SLUG)
     .map(c => c.name.toUpperCase())
     .join(" · ");
-  return `<article class="product" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-image="${image}">
+  return `<article class="product${outOfStock ? " out-of-stock" : ""}" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-stock="${p.stock}" data-image="${image}">
     <div class="product-media"><a href="${href}"><img src="${image}" alt="${name}" loading="lazy"></a>
       ${isBestSeller ? '<span class="best-seller-badge">BEST SELLER</span>' : ""}
+      ${outOfStock ? '<span class="out-of-stock-badge">STOK HABIS</span>' : ""}
       <button class="wish" type="button" aria-label="Simpan ${name}">♡</button></div>
     <div class="product-info"><p>${escape(eyebrow)}</p><h3><a href="${href}">${name}</a></h3>
-      <strong>${p.price}</strong><button class="add-button" type="button">Beli</button></div></article>`;
+      <strong>${p.price}</strong><button class="add-button" type="button">${outOfStock ? "Stok Habis" : "Beli"}</button></div></article>`;
 }
 
 function filterButton(slug: string, name: string) {
@@ -66,6 +68,7 @@ export async function GET() {
       console.error("Pengaturan ongkir gagal dimuat, pakai default 0", error);
       return 0;
     });
+    const shippingMode = await getShippingMode().catch(() => "auto" as const);
 
     const effectiveUser = await getEffectiveUser().catch((error) => {
       console.error("Sesi pengguna gagal dibaca", error);
@@ -100,7 +103,6 @@ export async function GET() {
     html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${products.length}</b>`);
     const filterButtons = [...usedCategories.entries()].map(([slug, name]) => filterButton(slug, name)).join("");
     html = html.replace('data-filter="all">Semua</button>', `data-filter="all">Semua</button>${filterButtons}`);
-    html = html.replace('<strong id="shipping-fee-display">Rp0</strong>', `<strong id="shipping-fee-display">${formatRupiah(shippingFlatFee)}</strong>`);
 
     const categoryLinks = [...usedCategories.entries()].map(([slug, name]) => categoryMenuLink(slug, name)).join("");
     html = html.replace('<div class="category-menu" hidden></div>', `<div class="category-menu" hidden>${categoryLinks}</div>`);
@@ -118,7 +120,7 @@ export async function GET() {
 
     const catalog = JSON.stringify(products).replace(/</g, "\\u003c");
     const userData = JSON.stringify(crystalUser).replace(/</g, "\\u003c");
-    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee}};window.crystalUser=${userData};</script>`);
+    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee},mode:${JSON.stringify(shippingMode)}};window.crystalUser=${userData};</script>`);
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   } catch (error) {
     console.error("Storefront unavailable", error);

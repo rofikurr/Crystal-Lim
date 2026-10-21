@@ -25,16 +25,20 @@
   });
   function openDetail(product, source) {
     opener = source; previousScroll = window.scrollY; activeProduct = product;
+    const stock = Number.isFinite(product.stock) ? product.stock : 10;
+    const outOfStock = stock <= 0;
+    const maxQty = Math.max(1, Math.min(10, stock));
+    const stockNote = outOfStock ? 'Stok habis saat ini — nantikan restock.' : (stock <= 5 ? `Tersisa ${stock} buah.` : '');
     detail.innerHTML = `<button class="detail-back" type="button">← Kembali ke koleksi</button>
       <div class="detail-layout"><div class="detail-gallery">
         <div class="detail-image-wrap"><img class="detail-main-image" src="${esc(product.image)}" alt="${esc(product.name)}"><span class="detail-image-count"></span></div>
         <div class="detail-gallery-nav"><button class="image-prev" aria-label="Foto sebelumnya">←</button><span>Detail produk asli Crystal Lim</span><button class="image-next" aria-label="Foto berikutnya">→</button></div>
         <div class="detail-thumbnails">${product.images.map((src,i)=>`<button class="detail-thumb" data-index="${i}" aria-label="Lihat foto ${i+1}" aria-pressed="false"><img src="${esc(src)}" alt="" loading="lazy"></button>`).join('')}</div>
       </div><div class="detail-copy"><p class="eyebrow">THE COLLECTION / CRYSTAL LIM</p><h1>${esc(product.name)}</h1><strong class="detail-price">${rupiah.format(product.price)}</strong>
-      <p class="detail-description">${esc(product.description)}</p><p class="detail-stock-note">Stok dan spesifikasi perlu dikonfirmasi sebelum transaksi diaktifkan.</p>
-      <label class="detail-quantity">Jumlah <input type="number" min="1" max="10" step="1" value="1" inputmode="numeric" required></label>
-      <button class="detail-buy" type="button">Lanjut isi alamat <span>→</span></button>
-      <button class="detail-add" type="button">Tambahkan ke keranjang</button><p class="detail-feedback" role="status"></p>
+      <p class="detail-description">${esc(product.description)}</p>${stockNote ? `<p class="detail-stock-note">${esc(stockNote)}</p>` : ''}
+      <label class="detail-quantity"${outOfStock ? ' hidden' : ''}>Jumlah <input type="number" min="1" max="${maxQty}" step="1" value="1" inputmode="numeric" required${outOfStock ? ' disabled' : ''}></label>
+      <button class="detail-buy" type="button"${outOfStock ? ' disabled' : ''}>${outOfStock ? 'Stok habis' : 'Lanjut isi alamat <span>→</span>'}</button>
+      <button class="detail-add" type="button"${outOfStock ? ' disabled' : ''}>Tambahkan ke keranjang</button><p class="detail-feedback" role="status"></p>
       <div class="detail-facts"><p><b>Pengiriman</b><span>Tarif API setelah alamat diisi</span></p><p><b>Pembayaran</b><span>Integrasi sedang disiapkan</span></p></div>
       <a class="detail-source" href="${esc(product.url)}" target="_blank" rel="noopener">Lihat spesifikasi di situs asli ↗</a></div></div>`;
     qs('main').hidden = true; detail.hidden = false; window.scrollTo(0,0);
@@ -43,11 +47,12 @@
     qs('.image-next',detail).addEventListener('click',()=>showImage(activeImage+1));
     qsa('.detail-thumb',detail).forEach(b=>b.addEventListener('click',()=>showImage(Number(b.dataset.index))));
     const add = (ensureQuantity = false) => {
+      if(outOfStock) return false;
       const input=qs('.detail-quantity input',detail);
       if(!input.reportValidity()) return false;
       const existing=cart.filter(p=>p.id===product.id).length;
       const count=ensureQuantity ? Math.max(0,Number(input.value)-existing) : Number(input.value);
-      if(existing+count>10){qs('.detail-feedback',detail).textContent='Maksimal 10 buah per produk. Ubah jumlah di keranjang.';return false;}
+      if(existing+count>maxQty){qs('.detail-feedback',detail).textContent=`Maksimal ${maxQty} buah per produk (sesuai stok tersedia). Ubah jumlah di keranjang.`;return false;}
       for(let i=0;i<count;i++) cart.push({id:product.id,name:product.name,price:product.price,image:product.image});
       renderCart(); return true;
     };
@@ -76,14 +81,25 @@
     }));
   }
   const form=qs('.checkout-form'), payStatus=qs('#payment-status'), payButton=qs('.place-order');
-  let paying=false, paymentController=null;
+  const quoteButton=qs('#quote-shipping'), shippingStatus=qs('#shipping-status'), shippingOptionsEl=qs('#shipping-options');
+  const shippingMode=window.crystalShipping?.mode==='flat' ? 'flat' : 'auto';
+  let paying=false, paymentController=null, quoting=false, selectedShipping=null;
   const items=()=>Object.values(cart.reduce((all,p)=>{const id=p.id||products.find(x=>x.name===p.name)?.id;if(!all[id])all[id]={id,quantity:0};all[id].quantity++;return all;},{}));
+  if(shippingMode==='flat'){
+    qs('#shipping-flat-note').hidden=false;
+    qs('#shipping-fee-display').textContent=rupiah.format(window.crystalShipping?.flatFee||0);
+  }else{
+    qs('#shipping-auto-section').hidden=false;
+  }
   function updateShippingTotal() {
-    const fee=window.crystalShipping?.flatFee||0;
+    const fee=shippingMode==='auto' ? (selectedShipping?.cost ?? (window.crystalShipping?.flatFee||0)) : (window.crystalShipping?.flatFee||0);
     qs('#shipping-total').textContent=rupiah.format(fee);
     qs('.summary-total').textContent=rupiah.format(cartSubtotal()+fee);
   }
-  window.addEventListener('cart:changed',updateShippingTotal);
+  window.addEventListener('cart:changed',()=>{
+    if(selectedShipping){selectedShipping=null;shippingOptionsEl.innerHTML='';shippingStatus.textContent='Keranjang berubah — cek ongkos kirim lagi.';}
+    updateShippingTotal();
+  });
   window.addEventListener('checkout:closed',()=>{paymentController?.abort();});
   updateShippingTotal();
   async function api(path,body,signal) {
@@ -92,10 +108,40 @@
     if(!response.ok) throw Error(data.error||'Permintaan gagal. Coba lagi.');
     return data;
   }
+  function selectShipping(option) { selectedShipping=option; updateShippingTotal(); }
+  function renderShippingOptions(options) {
+    shippingOptionsEl.innerHTML=options.map((o,i)=>`<label class="shipping-option">
+      <input type="radio" name="shipping-option" value="${i}"${i===0?' checked':''}>
+      <span><b>${esc(o.courierName)} — ${esc(o.service)}</b><small>${esc(o.description)} · estimasi ${esc(o.etd)}</small></span>
+      <strong>${rupiah.format(o.cost)}</strong>
+    </label>`).join('');
+    qsa('input[name="shipping-option"]',shippingOptionsEl).forEach((input,i)=>input.addEventListener('change',()=>selectShipping(options[i])));
+    if(options.length) selectShipping(options[0]);
+  }
+  const ADDRESS_FIELDS=['province','city','district','village','address','postal'];
+  function addressFieldsValid() {
+    for(const name of ADDRESS_FIELDS){ const el=form.elements[name]; if(el && !el.reportValidity()) return false; }
+    return true;
+  }
+  quoteButton?.addEventListener('click',async()=>{
+    if(quoting) return;
+    if(!addressFieldsValid()) return;
+    if(!cart.length){shippingStatus.textContent='Keranjang masih kosong.';return;}
+    quoting=true;quoteButton.disabled=true;shippingStatus.textContent='Mencari opsi pengiriman…';shippingOptionsEl.innerHTML='';
+    try{
+      const data=await api('/api/shipping/quote',{postal:form.elements.postal.value,items:items()});
+      shippingStatus.textContent='';
+      renderShippingOptions(data.options);
+    }catch(error){
+      shippingStatus.textContent=error.message;
+      selectedShipping=null;updateShippingTotal();
+    }finally{quoting=false;quoteButton.disabled=false;}
+  });
   form.addEventListener('submit',async event=>{
     event.preventDefault();if(paying||!form.reportValidity()||!cart.length)return;
     paying=true;payButton.disabled=true;payStatus.textContent='Menyiapkan pembayaran…';
     const customer=Object.fromEntries(new FormData(form));
+    if(selectedShipping){customer.shippingCourier=selectedShipping.courier;customer.shippingService=selectedShipping.service;}
     qsa('input,textarea,button',form).forEach(el=>el.disabled=true);
     paymentController=new AbortController();const timeout=setTimeout(()=>paymentController.abort(),25000);
     try{

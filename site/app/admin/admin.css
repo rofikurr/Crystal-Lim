@@ -34,5 +34,13 @@
 .login-error{background:#fbeceb;border:1px solid #e3b6b0;color:#a04135;padding:10px 12px;font-size:13px;margin:0;text-align:left}
 .admin-login-back{margin-top:26px;font-size:13px;color:#948c7c;text-decoration:none}
 .admin-login-back:hover{color:#a38145;text-decoration:underline}
+.login-divider{display:flex;align-items:center;gap:12px;margin:4px 0;color:#948c7c;font-size:12px}
+.login-divider::before,.login-divider::after{content:"";flex:1;height:1px;background:#e6dfd4}
+/* Mengikuti panduan branding Google (bg putih, border abu, logo "G" asli) —
+   supaya beda jelas dari tombol gold utama dan langsung dikenali sebagai
+   tombol Google, bukan cuma tombol lain yang kebetulan sewarna. */
+.google-signin-button{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#3c4043;border:1px solid #dadce0;padding:12px 22px;min-height:48px;font-weight:600;font-size:14px;text-decoration:none;transition:background-color .15s,box-shadow .15s}
+.google-signin-button:hover{background:#f8f9fa;box-shadow:0 1px 3px rgba(60,64,67,.2)}
+.google-signin-button:active{background:#f1f3f4}
 .view-as-banner{background:#3a2f1f;color:#f5eedf;padding:10px 20px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
 .view-as-banner button{border:1px solid #d7c6a6;background:transparent;color:#f5eedf;padding:6px 12px;font-size:12px}

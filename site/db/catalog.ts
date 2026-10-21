@@ -1,8 +1,10 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
 import { catalogMeta, categories, productCategories, products } from "./schema";
 import seedCatalog from "./seed-products.js";
 import { nowForDb } from "../lib/db-time";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type CategoryRef = { id: number; slug: string; name: string };
 
@@ -85,6 +87,15 @@ export type Product = {
   name: string;
   description: string;
   price: number;
+  stock: number;
+  netWeight: number;
+  packedWeight: number;
+  netLength: number;
+  netWidth: number;
+  netHeight: number;
+  packedLength: number;
+  packedWidth: number;
+  packedHeight: number;
   categories: CategoryRef[];
   image: string;
   images: string[];
@@ -182,6 +193,15 @@ function toProduct(row: ProductRow, categoryMap: Map<string, CategoryRef[]>): Pr
     name: row.name,
     description: row.description,
     price: row.price,
+    stock: row.stock,
+    netWeight: row.netWeight,
+    packedWeight: row.packedWeight,
+    netLength: row.netLength,
+    netWidth: row.netWidth,
+    netHeight: row.netHeight,
+    packedLength: row.packedLength,
+    packedWidth: row.packedWidth,
+    packedHeight: row.packedHeight,
     categories: categoryMap.get(row.id) ?? [],
     image: row.image,
     images: Array.isArray(row.images) ? row.images : [],
@@ -220,6 +240,15 @@ export async function saveProduct(
         name: product.name,
         description: product.description,
         price: product.price,
+        stock: product.stock,
+        netWeight: product.netWeight,
+        packedWeight: product.packedWeight,
+        netLength: product.netLength,
+        netWidth: product.netWidth,
+        netHeight: product.netHeight,
+        packedLength: product.packedLength,
+        packedWidth: product.packedWidth,
+        packedHeight: product.packedHeight,
         image: product.image,
         images: product.images,
         sourceUrl: product.url,
@@ -233,6 +262,15 @@ export async function saveProduct(
           name: product.name,
           description: product.description,
           price: product.price,
+          stock: product.stock,
+          netWeight: product.netWeight,
+          packedWeight: product.packedWeight,
+          netLength: product.netLength,
+          netWidth: product.netWidth,
+          netHeight: product.netHeight,
+          packedLength: product.packedLength,
+          packedWidth: product.packedWidth,
+          packedHeight: product.packedHeight,
           image: product.image,
           images: product.images,
           sourceUrl: product.url,
@@ -252,4 +290,26 @@ export async function saveProduct(
 
 export async function deleteProduct(id: string) {
   await db.delete(products).where(eq(products.id, id));
+}
+
+/**
+ * Kurangi stok secara atomic (`WHERE stock >= quantity`) supaya dua checkout
+ * bersamaan untuk unit terakhir yang sama tidak bisa dua-duanya berhasil.
+ * Kembalikan false kalau stok tidak cukup — dipanggil di dalam transaksi
+ * checkout, pemanggil yang memutuskan rollback (lempar error).
+ */
+export async function decrementStock(tx: Tx, productId: string, quantity: number): Promise<boolean> {
+  const result = await tx
+    .update(products)
+    .set({ stock: sql`${products.stock} - ${quantity}` })
+    .where(and(eq(products.id, productId), gte(products.stock, quantity)));
+  return result[0].affectedRows > 0;
+}
+
+/** Kembalikan stok yang sebelumnya dikurangi — dipanggil saat pesanan dibatalkan/expired. */
+export async function restoreStock(tx: Tx, productId: string, quantity: number): Promise<void> {
+  await tx
+    .update(products)
+    .set({ stock: sql`${products.stock} + ${quantity}` })
+    .where(eq(products.id, productId));
 }

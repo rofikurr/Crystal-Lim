@@ -34,6 +34,10 @@ export default function ProductDetailSheet({
                 <Badge variant={product.published ? "secondary" : "outline"}>
                   {product.published ? "Tampil di toko" : "Disembunyikan"}
                 </Badge>
+                <Badge variant={product.stock > 0 ? "secondary" : "outline"} className={product.stock <= 0 ? "text-destructive" : ""}>
+                  {product.stock > 0 ? `Stok: ${product.stock}` : "Stok habis"}
+                </Badge>
+                <Badge variant="secondary">{product.packedWeight}g (bersih {product.netWeight}g)</Badge>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {(product.images.length > 0 ? product.images : [product.image]).map((src) => (

@@ -176,7 +176,6 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
 
       <p className="text-xs text-muted-foreground">
         Perubahan hanya berlaku pada preview ini, belum mengubah katalog di crystal-lim.com.
-        Pembayaran masih belum aktif.
       </p>
 
       <ProductFormDialog

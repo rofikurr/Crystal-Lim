@@ -131,6 +131,103 @@ export default function ProductFormDialog({
                 onChange={(e) => update("price", Number(e.target.value))}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="product-stock">Stok</Label>
+              <Input
+                id="product-stock"
+                required
+                type="number"
+                min={0}
+                max={1000000}
+                value={form.stock}
+                onChange={(e) => update("stock", Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="product-net-weight">Berat bersih (gram)</Label>
+              <Input
+                id="product-net-weight"
+                required
+                type="number"
+                min={1}
+                max={50000}
+                value={form.netWeight}
+                onChange={(e) => update("netWeight", Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="product-packed-weight">Berat + packing (gram)</Label>
+              <Input
+                id="product-packed-weight"
+                required
+                type="number"
+                min={1}
+                max={50000}
+                value={form.packedWeight}
+                onChange={(e) => update("packedWeight", Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Dimensi bersih — P × L × T (cm)</Label>
+              <div className="flex gap-2">
+                <Input
+                  aria-label="Panjang bersih"
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={form.netLength}
+                  onChange={(e) => update("netLength", Number(e.target.value))}
+                />
+                <Input
+                  aria-label="Lebar bersih"
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={form.netWidth}
+                  onChange={(e) => update("netWidth", Number(e.target.value))}
+                />
+                <Input
+                  aria-label="Tinggi bersih"
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={form.netHeight}
+                  onChange={(e) => update("netHeight", Number(e.target.value))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Dimensi + packing — P × L × T (cm)</Label>
+              <div className="flex gap-2">
+                <Input
+                  aria-label="Panjang setelah packing"
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={form.packedLength}
+                  onChange={(e) => update("packedLength", Number(e.target.value))}
+                />
+                <Input
+                  aria-label="Lebar setelah packing"
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={form.packedWidth}
+                  onChange={(e) => update("packedWidth", Number(e.target.value))}
+                />
+                <Input
+                  aria-label="Tinggi setelah packing"
+                  type="number"
+                  min={1}
+                  max={300}
+                  value={form.packedHeight}
+                  onChange={(e) => update("packedHeight", Number(e.target.value))}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Dipakai hitung berat volumetrik (standar kurir) — pastikan diisi sesuai dus/packing asli.
+              </p>
+            </div>
             <div className="space-y-1.5 sm:col-span-2">
               <div className="flex items-center justify-between">
                 <Label>Kategori</Label>

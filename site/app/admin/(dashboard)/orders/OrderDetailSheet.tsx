@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -8,17 +13,41 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { patchJson } from "@/lib/api-client";
 import { money, STATUS_LABELS, type Order } from "./types";
 
 export default function OrderDetailSheet({
   order,
   open,
   onOpenChange,
+  onSaved,
 }: {
   order: Order | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSaved: () => Promise<void>;
 }) {
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [savingTracking, setSavingTracking] = useState(false);
+
+  useEffect(() => {
+    setTrackingNumber(order?.trackingNumber ?? "");
+  }, [order]);
+
+  async function saveTrackingNumber() {
+    if (!order) return;
+    setSavingTracking(true);
+    try {
+      await patchJson(`/api/admin/orders/${encodeURIComponent(order.id)}`, { trackingNumber });
+      await onSaved();
+      toast.success("Nomor resi disimpan.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nomor resi gagal disimpan.");
+    } finally {
+      setSavingTracking(false);
+    }
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
@@ -75,6 +104,20 @@ export default function OrderDetailSheet({
                 <dt className="text-muted-foreground">Total</dt>
                 <dd className="text-right font-semibold">{money.format(order.total)}</dd>
               </dl>
+              <div className="space-y-1.5">
+                <Label htmlFor="order-tracking-number">Nomor resi</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="order-tracking-number"
+                    placeholder="Isi setelah paket diserahkan ke kurir"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                  />
+                  <Button type="button" disabled={savingTracking} onClick={saveTrackingNumber}>
+                    {savingTracking ? "Menyimpan…" : "Simpan"}
+                  </Button>
+                </div>
+              </div>
               <div>
                 <p className="text-sm font-semibold">Dibuat</p>
                 <p className="mt-1 text-sm text-muted-foreground">{order.createdAt}</p>

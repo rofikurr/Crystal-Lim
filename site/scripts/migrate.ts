@@ -1,6 +1,7 @@
 import { mkdtempSync, copyFileSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import mysql from "mysql2/promise";
@@ -95,6 +96,36 @@ async function backfillLegacyCategories() {
   console.log(`Backfill kategori lama: ${rows.length} produk diperiksa, ${linked} relasi dibuat.`);
 }
 
+/**
+ * Produk dari seed awal (sebelum upload foto lewat admin ada) menyimpan path
+ * gambar lokal tanpa "/" di depan (mis. "assets/x.jpg"). Itu kebetulan masih
+ * tampil benar di storefront (karena halamannya di root "/"), tapi patah di
+ * halaman manapun yang bukan root seperti /admin/products. Perbaiki otomatis
+ * & idempotent setiap migrate — aman dipanggil berkali-kali, tidak menyentuh
+ * URL eksternal (https://...) atau yang sudah benar.
+ */
+async function fixLegacyImagePaths() {
+  const { db } = await import("../db");
+  const { products } = await import("../db/schema");
+
+  const needsSlash = (value: string) => value.length > 0 && !value.startsWith("/") && !value.startsWith("http");
+  const fixed = (value: string) => (needsSlash(value) ? `/${value}` : value);
+
+  const rows = await db.select({ id: products.id, image: products.image, images: products.images }).from(products);
+  let updated = 0;
+  for (const row of rows) {
+    const imageNeedsFix = needsSlash(row.image);
+    const imagesNeedFix = row.images.some(needsSlash);
+    if (!imageNeedsFix && !imagesNeedFix) continue;
+    await db
+      .update(products)
+      .set({ image: fixed(row.image), images: row.images.map(fixed) })
+      .where(eq(products.id, row.id));
+    updated += 1;
+  }
+  if (updated > 0) console.log(`Perbaikan path gambar lama: ${updated} produk diperbaiki.`);
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL belum diset.");
@@ -113,6 +144,7 @@ async function main() {
   console.log("Migrasi selesai.");
 
   await connection.end();
+  await fixLegacyImagePaths();
 }
 
 main().catch((error) => {

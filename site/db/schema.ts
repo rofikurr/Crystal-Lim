@@ -16,6 +16,24 @@ export const products = mysqlTable("products", {
   name: varchar("name", { length: 140 }).notNull(),
   description: text("description").notNull(),
   price: int("price").notNull(),
+  // Default tinggi (bukan 0) supaya produk lama yang belum pernah di-set stoknya
+  // tidak langsung tampil "habis" begitu kolom ini ditambahkan.
+  stock: int("stock").notNull().default(9999),
+  // Gram. netWeight = produk saja; packedWeight = produk + dus/bubble wrap —
+  // packedWeight yang dipakai hitung ongkir (itu yang ditimbang kurir).
+  // Default 500 cuma placeholder aman untuk produk lama, bukan nilai akurat.
+  netWeight: int("net_weight").notNull().default(500),
+  packedWeight: int("packed_weight").notNull().default(500),
+  // Sentimeter. Dipakai hitung berat volumetrik (P×L×T/5000, standar JNE) —
+  // kurir menagih berdasarkan MANA YANG LEBIH BESAR antara berat aktual vs
+  // volumetrik, supaya barang besar-tapi-ringan tidak salah dapat ongkir
+  // murah dan toko tidak rugi selisih ke kurir. Default dus kado kecil wajar.
+  netLength: int("net_length").notNull().default(10),
+  netWidth: int("net_width").notNull().default(10),
+  netHeight: int("net_height").notNull().default(5),
+  packedLength: int("packed_length").notNull().default(15),
+  packedWidth: int("packed_width").notNull().default(10),
+  packedHeight: int("packed_height").notNull().default(8),
   image: varchar("image", { length: 800 }).notNull(),
   images: json("images").$type<string[]>().notNull().default([]),
   sourceUrl: varchar("source_url", { length: 800 }).notNull().default(""),
@@ -123,6 +141,9 @@ export const orders = mysqlTable(
       .default("pending"),
     xenditInvoiceId: varchar("xendit_invoice_id", { length: 120 }).notNull().default(""),
     xenditInvoiceUrl: varchar("xendit_invoice_url", { length: 800 }).notNull().default(""),
+    // Diisi manual oleh admin setelah serah terima paket ke kurir — tidak ada
+    // resi otomatis (akun RajaOngkir Starter tidak kasih fitur buat resi).
+    trackingNumber: varchar("tracking_number", { length: 80 }).notNull().default(""),
     createdAt: datetime("created_at", { mode: "string" }).notNull(),
     updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
   },

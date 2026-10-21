@@ -1,7 +1,7 @@
 import { sameOrigin } from "../../../lib/auth/session";
 import { createOrder, setOrderInvoice, CheckoutError } from "../../../db/orders";
-import { getNumericSetting } from "../../../db/settings";
 import { createInvoice, XenditError } from "../../../lib/xendit";
+import { computeShippingFee } from "../../../lib/shipping";
 import { isValidEmail, isValidPostalCode } from "../../../lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +34,8 @@ export async function POST(request: Request) {
   const address = str(customer.address, 400);
   const postal = typeof customer.postal === "string" && isValidPostalCode(customer.postal) ? customer.postal : null;
   const notes = typeof customer.notes === "string" ? customer.notes.trim().slice(0, 200) : "";
+  const shippingCourier = typeof customer.shippingCourier === "string" ? customer.shippingCourier.slice(0, 32) : undefined;
+  const shippingService = typeof customer.shippingService === "string" ? customer.shippingService.slice(0, 32) : undefined;
   const items = Array.isArray(body.items) ? body.items : [];
 
   if (
@@ -46,7 +48,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const shippingFee = await getNumericSetting("shipping_flat_fee", 0);
+    const shippingFee = await computeShippingFee({
+      postal,
+      items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
+      preferredCourier: shippingCourier,
+      preferredService: shippingService,
+    });
     const shippingAddress = `${address}, ${village}, ${district}, ${city}, ${province} ${postal}`;
     const order = await createOrder({
       customerName: name,

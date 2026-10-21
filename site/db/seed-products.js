@@ -5,10 +5,10 @@ const crystalCatalog = [
     "name": "14k Cincin Emas Moldavite",
     "price": 4998000,
     "category": "jewelry",
-    "image": "assets/cincin-moldavite.jpg",
+    "image": "/assets/cincin-moldavite.jpg",
     "url": "https://crystal-lim.com/produk/14k-cincin-emas-moldavite/",
     "images": [
-      "assets/cincin-moldavite.jpg",
+      "/assets/cincin-moldavite.jpg",
       "https://crystal-lim.com/wp-content/uploads/2022/03/IMG_20220315_46128.jpg",
       "https://crystal-lim.com/wp-content/uploads/2022/03/IMG_20220315_46595.jpg",
       "https://crystal-lim.com/wp-content/uploads/2022/03/IMG_20220315_46964.jpg",
@@ -24,10 +24,10 @@ const crystalCatalog = [
     "name": "Perfect Witch Gift Box",
     "price": 498000,
     "category": "jewelry",
-    "image": "assets/gift-box.jpg",
+    "image": "/assets/gift-box.jpg",
     "url": "https://crystal-lim.com/produk/perfect-witch-gift-box/",
     "images": [
-      "assets/gift-box.jpg",
+      "/assets/gift-box.jpg",
       "https://crystal-lim.com/wp-content/uploads/2021/03/IMG_20210306_31978.jpg",
       "https://crystal-lim.com/wp-content/uploads/2021/03/IMG_20210306_32236.jpg",
       "https://crystal-lim.com/wp-content/uploads/2021/03/IMG_20210306_32460.jpg",
@@ -42,10 +42,10 @@ const crystalCatalog = [
     "name": "Shungite Sphere (Bola Shungite)",
     "price": 1239000,
     "category": "crystal",
-    "image": "assets/shungite.jpg",
+    "image": "/assets/shungite.jpg",
     "url": "https://crystal-lim.com/produk/shungite-sphere-bola-shungite/",
     "images": [
-      "assets/shungite.jpg",
+      "/assets/shungite.jpg",
       "https://crystal-lim.com/wp-content/uploads/2020/09/IMG_20200913_4130.jpg",
       "https://crystal-lim.com/wp-content/uploads/2020/09/IMG_20200913_46366.jpg"
     ],
@@ -58,10 +58,10 @@ const crystalCatalog = [
     "name": "Big Selenite Tower",
     "price": 4048000,
     "category": "crystal",
-    "image": "assets/selenite.jpg",
+    "image": "/assets/selenite.jpg",
     "url": "https://crystal-lim.com/produk/big-selenite-tower/",
     "images": [
-      "assets/selenite.jpg",
+      "/assets/selenite.jpg",
       "https://crystal-lim.com/wp-content/uploads/2020/05/IMG_20200503_57579.jpg",
       "https://crystal-lim.com/wp-content/uploads/2020/05/IMG_20200503_25977.jpg"
     ],
@@ -74,10 +74,10 @@ const crystalCatalog = [
     "name": "Liontin Naga Premium 12 Sinergy Crystals",
     "price": 5998000,
     "category": "sinergi",
-    "image": "assets/liontin.jpg",
+    "image": "/assets/liontin.jpg",
     "url": "https://crystal-lim.com/produk/premium-vial-12-sinergy-crystals/",
     "images": [
-      "assets/liontin.jpg",
+      "/assets/liontin.jpg",
       "https://crystal-lim.com/wp-content/uploads/2020/01/IMG_20211027_3370.jpg",
       "https://crystal-lim.com/wp-content/uploads/2020/01/IMG_20211027_3655.jpg",
       "https://crystal-lim.com/wp-content/uploads/2020/01/IMG_20200115_23866.jpg",
@@ -92,10 +92,10 @@ const crystalCatalog = [
     "name": "7 Sacred Geometri Clear Quartz",
     "price": 645000,
     "category": "crystal",
-    "image": "assets/quartz.jpg",
+    "image": "/assets/quartz.jpg",
     "url": "https://crystal-lim.com/produk/7-sacred-geometri-clear-quartz/",
     "images": [
-      "assets/quartz.jpg",
+      "/assets/quartz.jpg",
       "https://crystal-lim.com/wp-content/uploads/2018/12/IMG_20190623_54839.jpg",
       "https://crystal-lim.com/wp-content/uploads/2018/12/IMG_20190623_2794.jpg",
       "https://crystal-lim.com/wp-content/uploads/2018/12/IMG_20190623_8401.jpg"

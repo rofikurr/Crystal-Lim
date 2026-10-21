@@ -11,6 +11,15 @@ export type Product = {
   name: string;
   description: string;
   price: number;
+  stock: number;
+  netWeight: number;
+  packedWeight: number;
+  netLength: number;
+  netWidth: number;
+  netHeight: number;
+  packedLength: number;
+  packedWidth: number;
+  packedHeight: number;
   categories: CategoryRef[];
   image: string;
   images: string[];
@@ -26,6 +35,15 @@ export const EMPTY_PRODUCT: Product = {
   name: "",
   description: "",
   price: 0,
+  stock: 9999,
+  netWeight: 500,
+  packedWeight: 500,
+  netLength: 10,
+  netWidth: 10,
+  netHeight: 5,
+  packedLength: 15,
+  packedWidth: 10,
+  packedHeight: 8,
   categories: [],
   image: "",
   images: [],

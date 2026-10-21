@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Eye, Pencil, Star, StarOff, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -30,6 +32,8 @@ export default function ProductsTable({
   onDelete: (product: Product) => void;
   onToggleBest: (product: Product) => void;
 }) {
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
+
   if (products.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">
@@ -39,12 +43,14 @@ export default function ProductsTable({
   }
 
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Produk</TableHead>
           <TableHead>Kategori</TableHead>
           <TableHead>Harga</TableHead>
+          <TableHead>Stok</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Aksi</TableHead>
         </TableRow>
@@ -57,12 +63,19 @@ export default function ProductsTable({
             <TableRow key={product.id}>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={product.image}
-                    alt=""
-                    className="size-11 shrink-0 rounded-md border border-border object-cover"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setPreviewProduct(product)}
+                    title="Perbesar gambar"
+                    className="shrink-0 cursor-zoom-in"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={product.image}
+                      alt=""
+                      className="size-11 rounded-md border border-border object-cover"
+                    />
+                  </button>
                   <span className="font-medium">{product.name}</span>
                 </div>
               </TableCell>
@@ -72,6 +85,13 @@ export default function ProductsTable({
                   : "—"}
               </TableCell>
               <TableCell>{money.format(product.price)}</TableCell>
+              <TableCell>
+                {product.stock <= 0 ? (
+                  <Badge variant="outline" className="text-destructive">Habis</Badge>
+                ) : (
+                  product.stock
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1.5">
                   {best && <Badge>Best seller</Badge>}
@@ -128,5 +148,19 @@ export default function ProductsTable({
         })}
       </TableBody>
     </Table>
+    <Dialog open={previewProduct !== null} onOpenChange={(open) => !open && setPreviewProduct(null)}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogTitle>{previewProduct?.name}</DialogTitle>
+        {previewProduct && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewProduct.image}
+            alt={previewProduct.name}
+            className="w-full rounded-md border border-border object-contain"
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
