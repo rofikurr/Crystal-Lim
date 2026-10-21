@@ -25,9 +25,14 @@
 .admin-login-card>p{color:#777067;font-size:13px;margin:0 0 28px}
 .login-form{display:flex;flex-direction:column;gap:16px;width:100%}
 .login-form label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a38145;text-align:left}
-.login-form input{border:1px solid #d6d0c7;background:#fff;color:#25211b;padding:13px 14px;font-size:15px;min-height:46px;transition:border-color .15s,box-shadow .15s}
+.login-form input{width:100%;border:1px solid #d6d0c7;background:#fff;color:#25211b;padding:13px 14px;font-size:15px;min-height:46px;transition:border-color .15s,box-shadow .15s}
 .login-form input::placeholder{color:#b3ac9f}
 .login-form input:focus{outline:none;border-color:#b18a48;box-shadow:0 0 0 3px rgba(177,138,72,.15)}
+.login-form input:-webkit-autofill,.login-form input:-webkit-autofill:hover,.login-form input:-webkit-autofill:focus{-webkit-text-fill-color:#25211b;-webkit-box-shadow:0 0 0 1000px #fff inset;box-shadow:0 0 0 1000px #fff inset;caret-color:#25211b;transition:background-color 9999s ease-in-out 0s}
+.password-field{position:relative;display:flex}
+.password-field input{padding-right:44px}
+.password-toggle{position:absolute;top:0;right:0;height:100%;width:44px;display:flex;align-items:center;justify-content:center;border:0;background:none;padding:0;color:#948c7c}
+.password-toggle:hover{color:#a38145}
 .login-form .admin-primary{margin-top:6px;background:#b18a48;color:#fff;font-weight:700;letter-spacing:.02em;border:0;padding:14px 22px;min-height:48px;transition:background-color .15s,transform .1s}
 .login-form .admin-primary:hover:not(:disabled){background:#967037}
 .login-form .admin-primary:active:not(:disabled){transform:scale(.98)}

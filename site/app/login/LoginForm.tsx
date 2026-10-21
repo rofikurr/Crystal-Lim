@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   google_not_configured: "Login Google belum diaktifkan. Pakai email & kata sandi dulu.",
@@ -26,6 +27,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const googleError = params.get("error");
   const [error, setError] = useState(googleError ? GOOGLE_ERROR_MESSAGES[googleError] ?? "" : "");
   const [busy, setBusy] = useState(false);
@@ -70,14 +72,25 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
       </label>
       <label>
         Kata sandi
-        <input
-          type="password"
-          required
-          autoComplete="current-password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <span className="password-field">
+          <input
+            type={showPassword ? "text" : "password"}
+            required
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+        </span>
       </label>
       {error && (
         <p className="login-error" role="alert">
