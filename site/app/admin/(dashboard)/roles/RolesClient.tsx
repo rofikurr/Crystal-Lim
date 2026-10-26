@@ -8,8 +8,10 @@ import RoleDeleteAlert from "./RoleDeleteAlert";
 import RoleFormDialog from "./RoleFormDialog";
 import RolesList from "./RolesList";
 import type { Permission, Role } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function RolesClient() {
+  const { t } = useTranslation();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,14 +25,14 @@ export default function RolesClient() {
       roles: Role[];
       permissions: Permission[];
     };
-    if (!response.ok) throw new Error(data.error || "Data role gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("roles.loadFailed"));
     setRoles(data.roles);
     setPermissions(data.permissions);
   }
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Data role gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("roles.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -47,10 +49,10 @@ export default function RolesClient() {
       });
       if (!response.ok) {
         const data = (await response.json()) as { error?: string };
-        throw new Error(data.error || "Permission gagal diperbarui.");
+        throw new Error(data.error || t("roles.permissionUpdateFailed"));
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Permission gagal diperbarui.");
+      toast.error(error instanceof Error ? error.message : t("roles.permissionUpdateFailed"));
       await refresh();
     }
   }
@@ -59,12 +61,12 @@ export default function RolesClient() {
     <div className="space-y-6">
       <div className="flex justify-end">
         <Button onClick={() => setFormOpen(true)}>
-          <Plus className="size-4" /> Buat role
+          <Plus className="size-4" /> {t("roles.add")}
         </Button>
       </div>
 
       {loading ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">Memuat role…</p>
+        <p className="py-10 text-center text-sm text-muted-foreground">{t("roles.loading")}</p>
       ) : (
         <RolesList
           roles={roles}

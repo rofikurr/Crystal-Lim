@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { BEST_SELLER_SLUG, isBestSeller, money, type Product } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProductsTable({
   products,
@@ -32,12 +33,13 @@ export default function ProductsTable({
   onDelete: (product: Product) => void;
   onToggleBest: (product: Product) => void;
 }) {
+  const { t } = useTranslation();
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
 
   if (products.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">
-        Belum ada produk di tampilan ini.
+        {t("products.table.empty")}
       </p>
     );
   }
@@ -47,12 +49,12 @@ export default function ProductsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Produk</TableHead>
-          <TableHead>Kategori</TableHead>
-          <TableHead>Harga</TableHead>
-          <TableHead>Stok</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Aksi</TableHead>
+          <TableHead>{t("products.table.product")}</TableHead>
+          <TableHead>{t("products.table.category")}</TableHead>
+          <TableHead>{t("products.table.price")}</TableHead>
+          <TableHead>{t("products.table.stock")}</TableHead>
+          <TableHead>{t("orders.table.status")}</TableHead>
+          <TableHead className="text-right">{t("orders.table.action")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -66,7 +68,7 @@ export default function ProductsTable({
                   <button
                     type="button"
                     onClick={() => setPreviewProduct(product)}
-                    title="Perbesar gambar"
+                    title={t("products.table.enlargeImage")}
                     className="shrink-0 cursor-zoom-in"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -82,21 +84,21 @@ export default function ProductsTable({
               <TableCell className="text-muted-foreground">
                 {otherCategories.length > 0
                   ? otherCategories.map((c) => c.name).join(", ")
-                  : "—"}
+                  : t("products.table.none")}
               </TableCell>
               <TableCell>{money.format(product.price)}</TableCell>
               <TableCell>
                 {product.stock <= 0 ? (
-                  <Badge variant="outline" className="text-destructive">Habis</Badge>
+                  <Badge variant="outline" className="text-destructive">{t("products.table.outOfStock")}</Badge>
                 ) : (
                   product.stock
                 )}
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1.5">
-                  {best && <Badge>Best seller</Badge>}
+                  {best && <Badge>{t("admin.dashboard.bestSeller")}</Badge>}
                   <Badge variant={product.published ? "secondary" : "outline"}>
-                    {product.published ? "Tampil" : "Disembunyikan"}
+                    {product.published ? t("products.table.shown") : t("products.table.hidden")}
                   </Badge>
                 </div>
               </TableCell>
@@ -105,7 +107,7 @@ export default function ProductsTable({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    title="Lihat detail"
+                    title={t("orders.table.viewDetail")}
                     onClick={() => onDetail(product)}
                   >
                     <Eye className="size-4" />
@@ -115,7 +117,7 @@ export default function ProductsTable({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title={best ? "Lepas best seller" : "Jadikan best seller"}
+                        title={best ? t("products.table.removeBestSeller") : t("products.table.makeBestSeller")}
                         disabled={busy}
                         onClick={() => onToggleBest(product)}
                       >
@@ -124,7 +126,7 @@ export default function ProductsTable({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title="Edit"
+                        title={t("common.edit")}
                         onClick={() => onEdit(product)}
                       >
                         <Pencil className="size-4" />
@@ -132,7 +134,7 @@ export default function ProductsTable({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        title="Hapus"
+                        title={t("common.delete")}
                         disabled={busy}
                         className="text-destructive hover:text-destructive"
                         onClick={() => onDelete(product)}

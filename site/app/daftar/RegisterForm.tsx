@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { PHONE_PATTERN } from "@/lib/validation";
+import { useTranslation } from "@/lib/i18n/context";
 
 function GoogleLogo() {
   return (
@@ -18,6 +19,7 @@ function GoogleLogo() {
 export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
+  const { t } = useTranslation();
   const notice = params.get("notice");
   const [name, setName] = useState("");
   const [email, setEmail] = useState(params.get("email") ?? "");
@@ -36,7 +38,7 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
     event.preventDefault();
     setError("");
     if (password !== confirmPassword) {
-      setError("Konfirmasi kata sandi tidak sama.");
+      setError(t("auth.passwordMismatch"));
       return;
     }
     setBusy(true);
@@ -47,11 +49,11 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
         body: JSON.stringify({ name, email, phone, password }),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Pendaftaran gagal.");
+      if (!response.ok) throw new Error(data.error || t("auth.registerFailed"));
       router.replace(returnTo && returnTo.startsWith("/") ? returnTo : "/user/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pendaftaran gagal.");
+      setError(err instanceof Error ? err.message : t("auth.registerFailed"));
     } finally {
       setBusy(false);
     }
@@ -61,12 +63,11 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
     <form onSubmit={submit} className="login-form">
       {notice === "google_not_registered" && (
         <p className="login-notice" role="status">
-          Akun Google dengan email ini belum terdaftar. Lengkapi data di bawah, atau pakai tombol
-          &quot;Daftar dengan Google&quot; untuk daftar cepat.
+          {t("auth.googleNotRegisteredNotice")}
         </p>
       )}
       <label>
-        Nama lengkap
+        {t("common.fullName")}
         <input
           required
           maxLength={140}
@@ -76,7 +77,7 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
         />
       </label>
       <label>
-        Email
+        {t("common.email")}
         <input
           type="email"
           required
@@ -87,7 +88,7 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
         />
       </label>
       <label>
-        Nomor WhatsApp
+        {t("common.whatsapp")}
         <input
           type="tel"
           required
@@ -99,19 +100,19 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
         />
       </label>
       <label>
-        Kata sandi
+        {t("auth.password")}
         <input
           type="password"
           required
           minLength={8}
           autoComplete="new-password"
-          placeholder="Minimal 8 karakter"
+          placeholder={t("auth.passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
       </label>
       <label>
-        Konfirmasi kata sandi
+        {t("auth.confirmPassword")}
         <input
           type="password"
           required
@@ -127,16 +128,16 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
         </p>
       )}
       <button className="admin-primary" disabled={busy} type="submit">
-        {busy ? "Memproses…" : "Daftar"}
+        {busy ? t("common.sending") : t("auth.registerButton")}
       </button>
       {googleEnabled && (
         <>
           <div className="login-divider">
-            <span>atau</span>
+            <span>{t("common.or")}</span>
           </div>
           <a href={googleHref} className="google-signin-button">
             <GoogleLogo />
-            Daftar dengan Google
+            {t("auth.googleSignUp")}
           </a>
         </>
       )}

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatRupiah } from "@/lib/format";
+import { useTranslation } from "@/lib/i18n/context";
 
 type WishlistProduct = {
   id: string;
@@ -16,6 +17,7 @@ type WishlistProduct = {
 };
 
 export default function WishlistClient() {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<WishlistProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -23,13 +25,13 @@ export default function WishlistClient() {
   async function refresh() {
     const response = await fetch("/api/user/wishlist", { cache: "no-store" });
     const data = (await response.json()) as { error?: string; products: WishlistProduct[] };
-    if (!response.ok) throw new Error(data.error || "Wishlist gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("wishlist.loadFailed"));
     setProducts(data.products);
   }
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Wishlist gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("wishlist.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -39,10 +41,10 @@ export default function WishlistClient() {
       const response = await fetch(`/api/user/wishlist/${encodeURIComponent(productId)}`, {
         method: "DELETE",
       });
-      if (!response.ok) throw new Error("Gagal menghapus dari wishlist.");
+      if (!response.ok) throw new Error(t("wishlist.removeFailed"));
       setProducts((prev) => prev.filter((p) => p.id !== productId));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus dari wishlist.");
+      toast.error(error instanceof Error ? error.message : t("wishlist.removeFailed"));
     } finally {
       setBusyId(null);
     }
@@ -52,10 +54,10 @@ export default function WishlistClient() {
     <Card>
       <CardContent>
         {loading ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Memuat wishlist…</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("wishlist.loading")}</p>
         ) : products.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            Belum ada produk tersimpan. Klik ikon hati di produk yang kamu suka!
+            {t("wishlist.empty")}
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -75,7 +77,7 @@ export default function WishlistClient() {
                   disabled={busyId === product.id}
                   onClick={() => remove(product.id)}
                 >
-                  <Heart className="size-4 fill-current" /> Hapus
+                  <Heart className="size-4 fill-current" /> {t("wishlist.remove")}
                 </Button>
               </div>
             ))}

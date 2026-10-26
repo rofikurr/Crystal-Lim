@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/context";
 
 type ShippingMode = "flat" | "auto";
 
@@ -21,6 +22,7 @@ type DestinationOption = {
 };
 
 export default function PengaturanClient() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [shippingMode, setShippingMode] = useState<ShippingMode>("auto");
   const [savingMode, setSavingMode] = useState(false);
@@ -40,7 +42,7 @@ export default function PengaturanClient() {
       shippingMode: ShippingMode;
       shippingOrigin: { id: number; label: string } | null;
     };
-    if (!response.ok) throw new Error(data.error || "Pengaturan gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("settings.loadFailed"));
     setShippingFee(data.shippingFlatFee);
     setShippingMode(data.shippingMode);
     setShippingOrigin(data.shippingOrigin);
@@ -48,7 +50,7 @@ export default function PengaturanClient() {
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Pengaturan gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("settings.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -62,11 +64,11 @@ export default function PengaturanClient() {
         body: JSON.stringify({ shippingMode: mode }),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Mode ongkir gagal disimpan.");
+      if (!response.ok) throw new Error(data.error || t("settings.modeSaveFailed"));
       setShippingMode(mode);
-      toast.success(mode === "flat" ? "Ongkir sekarang flat untuk semua pesanan." : "Ongkir sekarang dihitung otomatis.");
+      toast.success(mode === "flat" ? t("settings.modeFlatSuccess") : t("settings.modeAutoSuccess"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Mode ongkir gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("settings.modeSaveFailed"));
     } finally {
       setSavingMode(false);
     }
@@ -82,10 +84,10 @@ export default function PengaturanClient() {
         body: JSON.stringify({ shippingFlatFee: shippingFee }),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Ongkir gagal disimpan.");
-      toast.success("Ongkir flat disimpan.");
+      if (!response.ok) throw new Error(data.error || t("settings.feeSaveFailed"));
+      toast.success(t("settings.feeSaved"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Ongkir gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("settings.feeSaveFailed"));
     } finally {
       setSavingFee(false);
     }
@@ -93,7 +95,7 @@ export default function PengaturanClient() {
 
   async function searchOrigin() {
     if (originQuery.trim().length < 3) {
-      toast.error("Ketik minimal 3 huruf.");
+      toast.error(t("settings.minCharsError"));
       return;
     }
     setSearchingOrigin(true);
@@ -102,11 +104,11 @@ export default function PengaturanClient() {
         cache: "no-store",
       });
       const data = (await response.json()) as { error?: string; results: DestinationOption[] };
-      if (!response.ok) throw new Error(data.error || "Pencarian gagal.");
+      if (!response.ok) throw new Error(data.error || t("settings.searchFailed"));
       setOriginResults(data.results);
-      if (data.results.length === 0) toast.error("Tidak ada hasil, coba kata kunci lain.");
+      if (data.results.length === 0) toast.error(t("settings.noResults"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Pencarian gagal.");
+      toast.error(error instanceof Error ? error.message : t("settings.searchFailed"));
     } finally {
       setSearchingOrigin(false);
     }
@@ -121,27 +123,27 @@ export default function PengaturanClient() {
         body: JSON.stringify({ shippingOriginId: option.id, shippingOriginLabel: option.label }),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Alamat asal gagal disimpan.");
+      if (!response.ok) throw new Error(data.error || t("settings.originSaveFailed"));
       setShippingOrigin({ id: option.id, label: option.label });
       setOriginResults([]);
       setOriginQuery("");
-      toast.success("Alamat asal pengiriman disimpan.");
+      toast.success(t("settings.originSaved"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Alamat asal gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("settings.originSaveFailed"));
     } finally {
       setSavingOrigin(false);
     }
   }
 
   if (loading) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">Memuat pengaturan…</p>;
+    return <p className="py-10 text-center text-sm text-muted-foreground">{t("settings.loading")}</p>;
   }
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Mode ongkos kirim</CardTitle>
+          <CardTitle>{t("settings.shippingModeTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -154,9 +156,9 @@ export default function PengaturanClient() {
                 shippingMode === "flat" ? "border-primary bg-accent" : "border-border hover:bg-accent/50",
               )}
             >
-              <p className="font-semibold">Flat</p>
+              <p className="font-semibold">{t("settings.flatLabel")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Semua pesanan kena ongkir sama rata, berapapun jaraknya. Sederhana, tidak butuh RajaOngkir.
+                {t("settings.flatDescription")}
               </p>
             </button>
             <button
@@ -168,28 +170,26 @@ export default function PengaturanClient() {
                 shippingMode === "auto" ? "border-primary bg-accent" : "border-border hover:bg-accent/50",
               )}
             >
-              <p className="font-semibold">Otomatis (RajaOngkir)</p>
+              <p className="font-semibold">{t("settings.autoLabel")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Ongkir dihitung real-time sesuai alamat & berat tiap pesanan. Perlu alamat asal diisi di bawah.
+                {t("settings.autoDescription")}
               </p>
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Mode ini menentukan yang BENERAN dipakai saat checkout — bukan sekadar perkiraan. Kalau mode
-            Otomatis dipilih tapi alamat asal belum diisi, atau RajaOngkir sedang bermasalah, sistem otomatis
-            jatuh ke ongkir flat di bawah supaya checkout tidak pernah gagal.
+            {t("settings.modeNote")}
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Ongkir flat</CardTitle>
+          <CardTitle>{t("settings.flatFeeTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={saveShippingFee} className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="space-y-1.5">
-              <Label htmlFor="shipping-fee">Nominal (Rp)</Label>
+              <Label htmlFor="shipping-fee">{t("settings.nominal")}</Label>
               <Input
                 id="shipping-fee"
                 type="number"
@@ -201,7 +201,7 @@ export default function PengaturanClient() {
               />
             </div>
             <Button type="submit" disabled={savingFee}>
-              {savingFee ? "Menyimpan…" : "Simpan ongkir"}
+              {savingFee ? t("common.saving") : t("settings.saveShipping")}
             </Button>
           </form>
         </CardContent>
@@ -209,25 +209,25 @@ export default function PengaturanClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Alamat asal pengiriman</CardTitle>
+          <CardTitle>{t("settings.shippingOriginTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">Dipakai untuk hitung ongkir RajaOngkir (mode Otomatis).</p>
+          <p className="text-sm text-muted-foreground">{t("settings.shippingOriginHint")}</p>
           {shippingOrigin && (
             <p className="text-sm text-muted-foreground">
-              Saat ini: <span className="font-medium text-foreground">{shippingOrigin.label}</span>
+              {t("settings.currentOrigin")} <span className="font-medium text-foreground">{shippingOrigin.label}</span>
             </p>
           )}
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
-              placeholder="Cari kota/kecamatan asal pengiriman…"
+              placeholder={t("settings.searchOriginPlaceholder")}
               className="sm:max-w-sm"
               value={originQuery}
               onChange={(e) => setOriginQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchOrigin())}
             />
             <Button type="button" variant="outline" disabled={searchingOrigin} onClick={searchOrigin}>
-              {searchingOrigin ? "Mencari…" : "Cari"}
+              {searchingOrigin ? t("settings.searching") : t("settings.search")}
             </Button>
           </div>
           {originResults.length > 0 && (

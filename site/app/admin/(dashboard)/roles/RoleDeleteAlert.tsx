@@ -2,6 +2,7 @@
 
 import ConfirmDeleteDialog from "@/components/shared/ConfirmDeleteDialog";
 import type { Role } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function RoleDeleteAlert({
   role,
@@ -14,22 +15,16 @@ export default function RoleDeleteAlert({
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ConfirmDeleteDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Hapus role?"
-      description={
-        role && (
-          <>
-            Role <strong>{role.name}</strong> akan dihapus permanen. Role yang masih dipakai user
-            tidak bisa dihapus.
-          </>
-        )
-      }
+      title={t("roles.delete.title")}
+      description={role && t("roles.delete.description", { name: role.name })}
       endpoint={role ? `/api/admin/roles/${role.id}` : null}
-      successMessage="Role dihapus."
-      errorFallback="Role gagal dihapus."
+      successMessage={t("roles.delete.success")}
+      errorFallback={t("roles.delete.failed")}
       onDeleted={onDeleted}
     />
   );

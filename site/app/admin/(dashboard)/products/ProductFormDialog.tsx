@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { postJson } from "@/lib/api-client";
 import { BEST_SELLER_SLUG, EMPTY_PRODUCT, type Category, type Product } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProductFormDialog({
   open,
@@ -32,6 +33,7 @@ export default function ProductFormDialog({
   categories: Category[];
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<Product>(EMPTY_PRODUCT);
   const [categoryIds, setCategoryIds] = useState<number[]>([]);
   const [gallery, setGallery] = useState("");
@@ -65,11 +67,11 @@ export default function ProductFormDialog({
       body.append("image", file);
       const response = await fetch("/api/admin/upload", { method: "POST", body });
       const data = (await response.json()) as { error?: string; url: string };
-      if (!response.ok) throw new Error(data.error || "Foto gagal diunggah.");
+      if (!response.ok) throw new Error(data.error || t("products.form.uploadFailed"));
       update("image", data.url);
-      toast.success("Foto berhasil diunggah. Simpan produk untuk menampilkannya.");
+      toast.success(t("products.form.uploadSuccess"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Foto gagal diunggah.");
+      toast.error(error instanceof Error ? error.message : t("products.form.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -88,11 +90,11 @@ export default function ProductFormDialog({
         categoryIds,
       };
       const data = await postJson<{ product: Product }>("/api/admin/products", payload);
-      toast.success(`${data.product.name} berhasil disimpan.`);
+      toast.success(t("products.form.saveSuccess", { name: data.product.name }));
       onOpenChange(false);
       onSaved();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Produk gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("products.form.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -102,15 +104,15 @@ export default function ProductFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{form.id ? "Edit produk" : "Tambah produk"}</DialogTitle>
+          <DialogTitle>{form.id ? t("products.form.editTitle") : t("products.form.addTitle")}</DialogTitle>
           <DialogDescription>
-            Perubahan langsung tampil di etalase setelah disimpan.
+            {t("products.form.formHint")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-name">Nama produk</Label>
+              <Label htmlFor="product-name">{t("products.form.name")}</Label>
               <Input
                 id="product-name"
                 required
@@ -120,7 +122,7 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="product-price">Harga (Rp)</Label>
+              <Label htmlFor="product-price">{t("products.form.price")}</Label>
               <Input
                 id="product-price"
                 required
@@ -132,7 +134,7 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="product-stock">Stok</Label>
+              <Label htmlFor="product-stock">{t("products.table.stock")}</Label>
               <Input
                 id="product-stock"
                 required
@@ -144,7 +146,7 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="product-net-weight">Berat bersih (gram)</Label>
+              <Label htmlFor="product-net-weight">{t("products.form.netWeight")}</Label>
               <Input
                 id="product-net-weight"
                 required
@@ -156,7 +158,7 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="product-packed-weight">Berat + packing (gram)</Label>
+              <Label htmlFor="product-packed-weight">{t("products.form.packedWeight")}</Label>
               <Input
                 id="product-packed-weight"
                 required
@@ -168,10 +170,10 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Dimensi bersih — P × L × T (cm)</Label>
+              <Label>{t("products.form.netDimensions")}</Label>
               <div className="flex gap-2">
                 <Input
-                  aria-label="Panjang bersih"
+                  aria-label={t("products.form.netLength")}
                   type="number"
                   min={1}
                   max={300}
@@ -179,7 +181,7 @@ export default function ProductFormDialog({
                   onChange={(e) => update("netLength", Number(e.target.value))}
                 />
                 <Input
-                  aria-label="Lebar bersih"
+                  aria-label={t("products.form.netWidth")}
                   type="number"
                   min={1}
                   max={300}
@@ -187,7 +189,7 @@ export default function ProductFormDialog({
                   onChange={(e) => update("netWidth", Number(e.target.value))}
                 />
                 <Input
-                  aria-label="Tinggi bersih"
+                  aria-label={t("products.form.netHeight")}
                   type="number"
                   min={1}
                   max={300}
@@ -197,10 +199,10 @@ export default function ProductFormDialog({
               </div>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Dimensi + packing — P × L × T (cm)</Label>
+              <Label>{t("products.form.packedDimensions")}</Label>
               <div className="flex gap-2">
                 <Input
-                  aria-label="Panjang setelah packing"
+                  aria-label={t("products.form.packedLength")}
                   type="number"
                   min={1}
                   max={300}
@@ -208,7 +210,7 @@ export default function ProductFormDialog({
                   onChange={(e) => update("packedLength", Number(e.target.value))}
                 />
                 <Input
-                  aria-label="Lebar setelah packing"
+                  aria-label={t("products.form.packedWidth")}
                   type="number"
                   min={1}
                   max={300}
@@ -216,7 +218,7 @@ export default function ProductFormDialog({
                   onChange={(e) => update("packedWidth", Number(e.target.value))}
                 />
                 <Input
-                  aria-label="Tinggi setelah packing"
+                  aria-label={t("products.form.packedHeight")}
                   type="number"
                   min={1}
                   max={300}
@@ -225,27 +227,27 @@ export default function ProductFormDialog({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Dipakai hitung berat volumetrik (standar kurir) — pastikan diisi sesuai dus/packing asli.
+                {t("products.form.volumetricHint")}
               </p>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <div className="flex items-center justify-between">
-                <Label>Kategori</Label>
+                <Label>{t("products.form.category")}</Label>
                 {bestSellerCategory && (
                   <button
                     type="button"
-                    title={isBestSeller ? "Lepas best seller" : "Jadikan best seller"}
+                    title={isBestSeller ? t("products.table.removeBestSeller") : t("products.table.makeBestSeller")}
                     onClick={() => toggleCategory(bestSellerCategory.id, !isBestSeller)}
                     className="flex items-center gap-1 text-xs font-medium text-accent-foreground"
                   >
                     <Star className={`size-4 ${isBestSeller ? "fill-current" : ""}`} />
-                    Best seller
+                    {t("admin.dashboard.bestSeller")}
                   </button>
                 )}
               </div>
               <div className="flex flex-col gap-2 rounded-md border border-border p-3">
                 {categories.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Belum ada kategori.</p>
+                  <p className="text-sm text-muted-foreground">{t("products.form.noCategory")}</p>
                 )}
                 {categories.map((category) => (
                   <label key={category.id} className="flex items-center gap-2 text-sm">
@@ -262,7 +264,7 @@ export default function ProductFormDialog({
               </div>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-description">Deskripsi</Label>
+              <Label htmlFor="product-description">{t("products.form.description")}</Label>
               <Textarea
                 id="product-description"
                 rows={4}
@@ -272,7 +274,7 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-photo">Foto utama</Label>
+              <Label htmlFor="product-photo">{t("products.form.mainPhoto")}</Label>
               <Input
                 id="product-photo"
                 type="file"
@@ -281,11 +283,11 @@ export default function ProductFormDialog({
                 onChange={(e) => upload(e.target.files?.[0])}
               />
               <p className="text-xs text-muted-foreground">
-                {uploading ? "Mengunggah…" : "JPG, PNG, atau WebP, maksimal 5 MB."}
+                {uploading ? t("products.form.uploading") : t("products.form.uploadHint")}
               </p>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-image-url">Atau URL foto utama</Label>
+              <Label htmlFor="product-image-url">{t("products.form.orPhotoUrl")}</Label>
               <Input
                 id="product-image-url"
                 required
@@ -297,13 +299,13 @@ export default function ProductFormDialog({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={form.image}
-                  alt="Pratinjau foto produk"
+                  alt={t("products.form.photoPreviewAlt")}
                   className="mt-2 size-28 rounded-md border border-border object-cover"
                 />
               )}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-gallery">Foto tambahan (satu URL per baris)</Label>
+              <Label htmlFor="product-gallery">{t("products.form.gallery")}</Label>
               <Textarea
                 id="product-gallery"
                 rows={3}
@@ -313,7 +315,7 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-source-url">Link produk asli (opsional)</Label>
+              <Label htmlFor="product-source-url">{t("products.form.sourceUrl")}</Label>
               <Input
                 id="product-source-url"
                 type="url"
@@ -323,7 +325,7 @@ export default function ProductFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="product-position">Urutan tampil</Label>
+              <Label htmlFor="product-position">{t("products.form.displayOrder")}</Label>
               <Input
                 id="product-position"
                 type="number"
@@ -339,16 +341,16 @@ export default function ProductFormDialog({
                   checked={form.published}
                   onCheckedChange={(checked) => update("published", checked === true)}
                 />
-                Tampilkan di toko
+                {t("products.form.showInStore")}
               </label>
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Menyimpan…" : "Simpan produk"}
+              {busy ? t("common.saving") : t("products.form.save")}
             </Button>
           </DialogFooter>
         </form>

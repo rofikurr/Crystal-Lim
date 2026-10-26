@@ -6,8 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import OrderDetailSheet from "./OrderDetailSheet";
 import OrdersTable from "./OrdersTable";
 import type { Order, OrderStatus } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function OrdersClient() {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -16,13 +18,13 @@ export default function OrdersClient() {
   async function refresh() {
     const response = await fetch("/api/admin/orders", { cache: "no-store" });
     const data = (await response.json()) as { error?: string; orders: Order[] };
-    if (!response.ok) throw new Error(data.error || "Pesanan gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("orders.client.loadFailed"));
     setOrders(data.orders);
   }
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Data gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("orders.client.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -35,11 +37,11 @@ export default function OrdersClient() {
         body: JSON.stringify({ status }),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Status gagal diperbarui.");
+      if (!response.ok) throw new Error(data.error || t("orders.client.statusUpdateFailed"));
       await refresh();
-      toast.success("Status pesanan diperbarui.");
+      toast.success(t("orders.client.statusUpdated"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Status gagal diperbarui.");
+      toast.error(error instanceof Error ? error.message : t("orders.client.statusUpdateFailed"));
     } finally {
       setBusy(false);
     }
@@ -50,7 +52,7 @@ export default function OrdersClient() {
       <Card>
         <CardContent>
           {loading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">Memuat pesanan…</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("orders.client.loading")}</p>
           ) : (
             <OrdersTable
               orders={orders}

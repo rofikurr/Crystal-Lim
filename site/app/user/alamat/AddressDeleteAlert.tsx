@@ -2,6 +2,7 @@
 
 import ConfirmDeleteDialog from "@/components/shared/ConfirmDeleteDialog";
 import type { Address } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function AddressDeleteAlert({
   address,
@@ -14,21 +15,16 @@ export default function AddressDeleteAlert({
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ConfirmDeleteDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Hapus alamat?"
-      description={
-        address && (
-          <>
-            Alamat <strong>{address.label}</strong> akan dihapus permanen.
-          </>
-        )
-      }
+      title={t("address.deleteTitle")}
+      description={address && t("address.deleteConfirm", { label: address.label })}
       endpoint={address ? `/api/user/addresses/${address.id}` : null}
-      successMessage="Alamat dihapus."
-      errorFallback="Alamat gagal dihapus."
+      successMessage={t("address.deleted")}
+      errorFallback={t("address.deleteFailed")}
       onDeleted={onDeleted}
     />
   );

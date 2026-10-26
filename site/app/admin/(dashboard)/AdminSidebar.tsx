@@ -5,28 +5,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, ChevronDown, LayoutDashboard, Megaphone, Package, Settings, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/context";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const ITEMS = [
-  { href: "/admin", label: "Dashboard", permission: null, icon: LayoutDashboard },
+  { href: "/admin", labelKey: "admin.sidebar.dashboard" as TranslationKey, permission: null, icon: LayoutDashboard },
   {
-    label: "Produk",
+    labelKey: "admin.sidebar.products" as TranslationKey,
     permission: "products.manage",
     icon: Package,
     children: [
-      { href: "/admin/products", label: "Semua Produk" },
-      { href: "/admin/products/categories", label: "Kategori" },
+      { href: "/admin/products", labelKey: "admin.sidebar.allProducts" as TranslationKey },
+      { href: "/admin/products/categories", labelKey: "admin.sidebar.categories" as TranslationKey },
     ],
   },
-  { href: "/admin/orders", label: "Pesanan", permission: "orders.manage", icon: ShoppingBag },
-  { href: "/admin/laporan-pendapatan", label: "Laporan Pendapatan", permission: "orders.manage", icon: BarChart3 },
-  { href: "/admin/pengaturan", label: "Pengaturan", permission: "orders.manage", icon: Settings },
-  { href: "/admin/broadcast", label: "Broadcast Email", permission: "broadcast.manage", icon: Megaphone },
-  { href: "/admin/users", label: "Manajemen User", permission: "users.manage", icon: Users },
-  { href: "/admin/roles", label: "Role & Permission", permission: "roles.manage", icon: ShieldCheck },
+  { href: "/admin/orders", labelKey: "admin.sidebar.orders" as TranslationKey, permission: "orders.manage", icon: ShoppingBag },
+  { href: "/admin/laporan-pendapatan", labelKey: "admin.sidebar.revenueReport" as TranslationKey, permission: "orders.manage", icon: BarChart3 },
+  { href: "/admin/pengaturan", labelKey: "admin.sidebar.settings" as TranslationKey, permission: "orders.manage", icon: Settings },
+  { href: "/admin/broadcast", labelKey: "admin.sidebar.broadcast" as TranslationKey, permission: "broadcast.manage", icon: Megaphone },
+  { href: "/admin/users", labelKey: "admin.sidebar.userManagement" as TranslationKey, permission: "users.manage", icon: Users },
+  { href: "/admin/roles", labelKey: "admin.sidebar.rolePermission" as TranslationKey, permission: "roles.manage", icon: ShieldCheck },
 ] as const;
 
 export default function AdminSidebar({ permissions }: { permissions: string[] }) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const productsActive = pathname.startsWith("/admin/products");
   const [productsOpen, setProductsOpen] = useState(productsActive);
 
@@ -38,7 +41,7 @@ export default function AdminSidebar({ permissions }: { permissions: string[] })
           if ("children" in item) {
             const open = productsOpen || productsActive;
             return (
-              <div key={item.label}>
+              <div key={item.labelKey}>
                 <button
                   type="button"
                   onClick={() => setProductsOpen((prev) => !prev)}
@@ -48,7 +51,7 @@ export default function AdminSidebar({ permissions }: { permissions: string[] })
                   )}
                 >
                   <Icon className="size-4" />
-                  <span className="flex-1 text-left">{item.label}</span>
+                  <span className="flex-1 text-left">{t(item.labelKey)}</span>
                   <ChevronDown
                     className={cn("size-4 transition-transform", open && "rotate-180")}
                   />
@@ -66,7 +69,7 @@ export default function AdminSidebar({ permissions }: { permissions: string[] })
                             active && "bg-sidebar-accent text-sidebar-accent-foreground",
                           )}
                         >
-                          {child.label}
+                          {t(child.labelKey)}
                         </Link>
                       );
                     })}
@@ -86,7 +89,7 @@ export default function AdminSidebar({ permissions }: { permissions: string[] })
               )}
             >
               <Icon className="size-4" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         },

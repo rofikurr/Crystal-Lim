@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatRupiah } from "@/lib/format";
+import { useTranslation } from "@/lib/i18n/context";
 
 type Point = { date: string; revenue: number; orderCount: number };
 
@@ -30,6 +31,7 @@ function roundedTopBarPath(x: number, y: number, w: number, h: number, r: number
 }
 
 export default function RevenueChart({ points }: { points: Point[] }) {
+  const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const width = 700;
@@ -52,7 +54,7 @@ export default function RevenueChart({ points }: { points: Point[] }) {
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
         role="img"
-        aria-label="Grafik pendapatan harian"
+        aria-label={t("report.chartAriaLabel")}
       >
         {/* Gridline recessive, hairline solid */}
         {gridLines.map((fraction) => {
@@ -76,7 +78,7 @@ export default function RevenueChart({ points }: { points: Point[] }) {
             textAnchor="middle"
             className="fill-muted-foreground text-[13px]"
           >
-            Belum ada pendapatan pada periode ini.
+            {t("report.noRevenuePeriod")}
           </text>
         )}
         {points.map((point, i) => {
@@ -101,7 +103,7 @@ export default function RevenueChart({ points }: { points: Point[] }) {
                 onBlur={() => setActiveIndex(null)}
                 tabIndex={0}
                 role="img"
-                aria-label={`${DAY_LABEL.format(new Date(point.date))}: ${formatRupiah(point.revenue)}, ${point.orderCount} pesanan`}
+                aria-label={`${DAY_LABEL.format(new Date(point.date))}: ${formatRupiah(point.revenue)}, ${t("report.ordersCount", { count: point.orderCount })}`}
               />
               {barHeight > 0 && (
                 <path
@@ -144,7 +146,7 @@ export default function RevenueChart({ points }: { points: Point[] }) {
         >
           <p className="font-semibold text-popover-foreground">{formatRupiah(activePoint.revenue)}</p>
           <p className="text-muted-foreground">
-            {DAY_LABEL.format(new Date(activePoint.date))} · {activePoint.orderCount} pesanan
+            {DAY_LABEL.format(new Date(activePoint.date))} · {t("report.ordersCount", { count: activePoint.orderCount })}
           </p>
         </div>
       )}

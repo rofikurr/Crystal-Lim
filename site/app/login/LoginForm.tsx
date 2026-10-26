@@ -3,13 +3,15 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "@/lib/i18n/context";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
-const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
-  google_not_configured: "Login Google belum diaktifkan. Pakai email & kata sandi dulu.",
-  google_failed: "Login Google gagal. Coba lagi.",
-  google_unverified: "Email Google kamu belum terverifikasi. Pakai email & kata sandi dulu.",
-  google_suspended: "Akun ini dinonaktifkan. Hubungi admin.",
-  google_already_registered: "Email ini sudah terdaftar. Silakan masuk dengan Google di bawah.",
+const GOOGLE_ERROR_KEYS: Record<string, TranslationKey> = {
+  google_not_configured: "auth.googleNotConfigured",
+  google_failed: "auth.googleFailed",
+  google_unverified: "auth.googleUnverified",
+  google_suspended: "auth.googleSuspended",
+  google_already_registered: "auth.googleAlreadyRegistered",
 };
 
 function GoogleLogo() {
@@ -26,11 +28,12 @@ function GoogleLogo() {
 export default function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const googleError = params.get("error");
-  const [error, setError] = useState(googleError ? GOOGLE_ERROR_MESSAGES[googleError] ?? "" : "");
+  const [error, setError] = useState(googleError && GOOGLE_ERROR_KEYS[googleError] ? t(GOOGLE_ERROR_KEYS[googleError]) : "");
   const [busy, setBusy] = useState(false);
 
   const returnTo = params.get("return_to");
@@ -49,12 +52,12 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
         body: JSON.stringify({ email, password }),
       });
       const data = (await response.json()) as { error?: string; roleSlug?: string };
-      if (!response.ok) throw new Error(data.error || "Gagal masuk.");
+      if (!response.ok) throw new Error(data.error || t("auth.loginFailed"));
       const fallback = data.roleSlug === "user" ? "/user/dashboard" : "/admin";
       router.replace(returnTo && returnTo.startsWith("/") ? returnTo : fallback);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal masuk.");
+      setError(err instanceof Error ? err.message : t("auth.loginFailed"));
     } finally {
       setBusy(false);
     }
@@ -63,7 +66,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
   return (
     <form onSubmit={submit} className="login-form">
       <label>
-        Email
+        {t("common.email")}
         <input
           type="email"
           required
@@ -74,7 +77,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
         />
       </label>
       <label>
-        Kata sandi
+        {t("auth.password")}
         <span className="password-field">
           <input
             type={showPassword ? "text" : "password"}
@@ -88,7 +91,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
             type="button"
             className="password-toggle"
             onClick={() => setShowPassword((prev) => !prev)}
-            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+            aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
             tabIndex={-1}
           >
             {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -101,16 +104,16 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
         </p>
       )}
       <button className="admin-primary" disabled={busy} type="submit">
-        {busy ? "Memproses…" : "Masuk"}
+        {busy ? t("common.sending") : t("auth.loginButton")}
       </button>
       {googleEnabled && (
         <>
           <div className="login-divider">
-            <span>atau</span>
+            <span>{t("common.or")}</span>
           </div>
           <a href={googleHref} className="google-signin-button">
             <GoogleLogo />
-            Masuk dengan Google
+            {t("auth.googleSignIn")}
           </a>
         </>
       )}

@@ -17,8 +17,10 @@ import {
 import { BEST_SELLER_SLUG, type Category } from "../types";
 import CategoryDeleteAlert from "./CategoryDeleteAlert";
 import CategoryFormDialog from "./CategoryFormDialog";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function CategoriesClient() {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -28,13 +30,13 @@ export default function CategoriesClient() {
   async function refresh() {
     const response = await fetch("/api/admin/products/categories", { cache: "no-store" });
     const data = (await response.json()) as { error?: string; categories: Category[] };
-    if (!response.ok) throw new Error(data.error || "Kategori gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("categories.loadFailed"));
     setCategories(data.categories);
   }
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Kategori gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("categories.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -48,22 +50,22 @@ export default function CategoriesClient() {
               setFormOpen(true);
             }}
           >
-            <Plus className="size-4" /> Tambah kategori
+            <Plus className="size-4" /> {t("categories.add")}
           </Button>
         </div>
 
         {loading ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Memuat kategori…</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("categories.loading")}</p>
         ) : categories.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Belum ada kategori.</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("categories.empty")}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead>Urutan</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead>{t("categories.table.name")}</TableHead>
+                <TableHead>{t("categories.table.order")}</TableHead>
+                <TableHead>{t("orders.table.status")}</TableHead>
+                <TableHead className="text-right">{t("orders.table.action")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -79,7 +81,7 @@ export default function CategoriesClient() {
                   </TableCell>
                   <TableCell>{category.position}</TableCell>
                   <TableCell>
-                    {category.isSystem && <Badge variant="secondary">Sistem</Badge>}
+                    {category.isSystem && <Badge variant="secondary">{t("categories.table.system")}</Badge>}
                   </TableCell>
                   <TableCell className="text-right">
                     {!category.isSystem && (
@@ -87,7 +89,7 @@ export default function CategoriesClient() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          title="Edit"
+                          title={t("common.edit")}
                           onClick={() => {
                             setEditingCategory(category);
                             setFormOpen(true);
@@ -98,7 +100,7 @@ export default function CategoriesClient() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          title="Hapus"
+                          title={t("common.delete")}
                           className="text-destructive hover:text-destructive"
                           onClick={() => setDeleteTarget(category)}
                         >

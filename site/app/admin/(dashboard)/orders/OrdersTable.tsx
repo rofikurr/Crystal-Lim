@@ -12,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { money, STATUS_LABELS, type Order, type OrderStatus } from "./types";
+import { money, STATUS_KEYS, type Order, type OrderStatus } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 const BADGE_VARIANT: Partial<Record<OrderStatus, "secondary" | "outline" | "destructive">> = {
   paid: "secondary",
@@ -35,19 +36,20 @@ export default function OrdersTable({
   onDetail: (order: Order) => void;
   onChangeStatus: (order: Order, status: OrderStatus) => void;
 }) {
+  const { t } = useTranslation();
   if (orders.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">Belum ada pesanan.</p>;
+    return <p className="py-10 text-center text-sm text-muted-foreground">{t("orders.table.empty")}</p>;
   }
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Pembeli</TableHead>
-          <TableHead>Total</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Tanggal</TableHead>
-          <TableHead className="text-right">Aksi</TableHead>
+          <TableHead>{t("orders.table.buyer")}</TableHead>
+          <TableHead>{t("common.total")}</TableHead>
+          <TableHead>{t("orders.table.status")}</TableHead>
+          <TableHead>{t("orders.table.date")}</TableHead>
+          <TableHead className="text-right">{t("orders.table.action")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -62,7 +64,7 @@ export default function OrdersTable({
             <TableCell>{money.format(order.total)}</TableCell>
             <TableCell>
               <Badge variant={BADGE_VARIANT[order.status] ?? "outline"}>
-                {STATUS_LABELS[order.status]}
+                {t(STATUS_KEYS[order.status])}
               </Badge>
             </TableCell>
             <TableCell className="text-muted-foreground">{order.createdAt}</TableCell>
@@ -79,15 +81,15 @@ export default function OrdersTable({
                       e.target.value = "";
                     }}
                   >
-                    <NativeSelectOption value="">Ubah status…</NativeSelectOption>
+                    <NativeSelectOption value="">{t("orders.table.changeStatus")}</NativeSelectOption>
                     {CHANGEABLE_STATUSES.map((status) => (
                       <NativeSelectOption key={status} value={status}>
-                        {STATUS_LABELS[status]}
+                        {t(STATUS_KEYS[status])}
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>
                 ) : null}
-                <Button variant="ghost" size="icon-sm" title="Lihat detail" onClick={() => onDetail(order)}>
+                <Button variant="ghost" size="icon-sm" title={t("orders.table.viewDetail")} onClick={() => onDetail(order)}>
                   <Eye className="size-4" />
                 </Button>
               </div>

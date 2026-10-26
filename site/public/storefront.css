@@ -16,6 +16,11 @@ body { background: var(--white); }
 .brand b { font-size: 27px; font-weight: 750; letter-spacing: -.065em; white-space: nowrap; }
 .brand small { font-size: 6px; letter-spacing: .24em; margin-top: 4px; }
 .header-actions { width: 100%; justify-content: flex-end; gap: 22px; }
+.lang-switch { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line); height: 32px; }
+.lang-switch button { all: unset; cursor: pointer; font-size: 10px; font-weight: 700; letter-spacing: .06em; padding: 0 10px; height: 100%; display: flex; align-items: center; color: var(--muted); }
+.lang-switch button.active { background: var(--ink); color: var(--white); }
+.mobile-menu .lang-switch { height: 36px; margin: 4px 0 14px; width: fit-content; }
+.mobile-menu .lang-switch button { font-size: 11px; padding: 0 14px; }
 .menu-button { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; }
 .market-search { display: flex; width: 44px; min-width: 44px; height: 44px; padding: 10px; background: transparent; border: 0; border-radius: 0; }
 .market-search span { display: none; }

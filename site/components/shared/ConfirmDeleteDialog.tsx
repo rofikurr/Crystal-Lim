@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ConfirmDeleteDialog({
   open,
@@ -33,6 +34,7 @@ export default function ConfirmDeleteDialog({
   errorFallback: string;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
 
   async function confirmDelete() {
@@ -60,7 +62,7 @@ export default function ConfirmDeleteDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Batal</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={busy}
@@ -69,7 +71,7 @@ export default function ConfirmDeleteDialog({
               confirmDelete();
             }}
           >
-            {busy ? "Menghapus…" : "Ya, hapus"}
+            {busy ? t("common.deleting") : t("common.yesDelete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

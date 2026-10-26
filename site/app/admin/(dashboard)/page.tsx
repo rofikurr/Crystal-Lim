@@ -6,6 +6,7 @@ import { countUsers } from "@/db/users";
 import { getEffectivePermissionSlugs } from "@/lib/auth/permissions";
 import { formatRupiah } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getServerTranslator } from "@/lib/i18n/server";
 import RevenueChart from "./RevenueChart";
 
 const REVENUE_WINDOW_DAYS = 14;
@@ -37,6 +38,7 @@ function StatCard({
 }
 
 export default async function DashboardPage() {
+  const t = await getServerTranslator();
   const permissions = await getEffectivePermissionSlugs();
   const products = await listProducts(true);
 
@@ -55,39 +57,39 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <p className="text-xs font-bold tracking-widest text-accent-foreground">OVERVIEW</p>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">Ringkasan toko Crystal Lim.</p>
+        <p className="text-xs font-bold tracking-widest text-accent-foreground">{t("admin.dashboard.overview")}</p>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("admin.dashboard.title")}</h1>
+        <p className="mt-1 text-muted-foreground">{t("admin.dashboard.subtitle")}</p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Package} label="Total produk" value={products.length} />
+        <StatCard icon={Package} label={t("admin.dashboard.totalProducts")} value={products.length} />
         <StatCard
           icon={Eye}
-          label="Tampil di toko"
+          label={t("admin.dashboard.publishedInStore")}
           value={products.filter((p) => p.published).length}
         />
         <StatCard
           icon={Star}
-          label="Best seller"
+          label={t("admin.dashboard.bestSeller")}
           value={products.filter((p) => p.categories.some((c) => c.slug === BEST_SELLER_SLUG)).length}
         />
         {orders !== null && (
-          <StatCard icon={ShoppingBag} label="Total pesanan" value={orders.length} />
+          <StatCard icon={ShoppingBag} label={t("admin.dashboard.totalOrders")} value={orders.length} />
         )}
-        {totalUsers !== null && <StatCard icon={Users} label="Total user" value={totalUsers} />}
+        {totalUsers !== null && <StatCard icon={Users} label={t("admin.dashboard.totalUsers")} value={totalUsers} />}
         {totalRoles !== null && (
-          <StatCard icon={ShieldCheck} label="Total role" value={totalRoles} />
+          <StatCard icon={ShieldCheck} label={t("admin.dashboard.totalRoles")} value={totalRoles} />
         )}
       </div>
       {revenue !== null ? (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={Wallet} label="Pendapatan (lunas)" value={formatRupiah(revenue)} />
+            <StatCard icon={Wallet} label={t("admin.dashboard.revenuePaid")} value={formatRupiah(revenue)} />
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Pendapatan {REVENUE_WINDOW_DAYS} hari terakhir</CardTitle>
+                <CardTitle>{t("admin.dashboard.revenueLastDays", { days: REVENUE_WINDOW_DAYS })}</CardTitle>
               </CardHeader>
               <CardContent>
                 <RevenueChart points={dailyRevenue ?? []} />
@@ -95,7 +97,7 @@ export default async function DashboardPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Produk terlaris ({REVENUE_WINDOW_DAYS} hari)</CardTitle>
+                <CardTitle>{t("admin.dashboard.topProductsLastDays", { days: REVENUE_WINDOW_DAYS })}</CardTitle>
               </CardHeader>
               <CardContent>
                 {topProducts && topProducts.length > 0 ? (
@@ -106,12 +108,12 @@ export default async function DashboardPage() {
                           <span className="text-muted-foreground">{i + 1}.</span>
                           <span className="truncate">{product.productName}</span>
                         </span>
-                        <span className="shrink-0 font-medium">{product.quantity} terjual</span>
+                        <span className="shrink-0 font-medium">{product.quantity} {t("admin.dashboard.sold")}</span>
                       </li>
                     ))}
                   </ol>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Belum ada penjualan pada periode ini.</p>
+                  <p className="text-sm text-muted-foreground">{t("admin.dashboard.noSalesPeriod")}</p>
                 )}
               </CardContent>
             </Card>
@@ -120,7 +122,7 @@ export default async function DashboardPage() {
       ) : (
         <Card>
           <CardContent className="text-sm text-muted-foreground">
-            Laporan pendapatan: belum ada data — sistem order/checkout belum aktif.
+            {t("admin.dashboard.noRevenueData")}
           </CardContent>
         </Card>
       )}

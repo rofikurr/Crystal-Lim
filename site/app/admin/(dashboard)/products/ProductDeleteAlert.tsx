@@ -2,6 +2,7 @@
 
 import ConfirmDeleteDialog from "@/components/shared/ConfirmDeleteDialog";
 import type { Product } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProductDeleteAlert({
   product,
@@ -14,22 +15,16 @@ export default function ProductDeleteAlert({
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ConfirmDeleteDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Hapus produk?"
-      description={
-        product && (
-          <>
-            Produk <strong>{product.name}</strong> akan dihapus permanen dari katalog. Tindakan ini
-            tidak dapat dibatalkan.
-          </>
-        )
-      }
+      title={t("products.delete.title")}
+      description={product && t("products.delete.description", { name: product.name })}
       endpoint={product ? `/api/admin/products/${encodeURIComponent(product.id)}` : null}
-      successMessage="Produk dihapus."
-      errorFallback="Produk gagal dihapus."
+      successMessage={t("products.delete.success")}
+      errorFallback={t("products.delete.failed")}
       onDeleted={onDeleted}
     />
   );

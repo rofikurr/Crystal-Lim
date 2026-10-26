@@ -11,14 +11,17 @@ import ProductDetailSheet from "./ProductDetailSheet";
 import ProductFormDialog from "./ProductFormDialog";
 import ProductsTable from "./ProductsTable";
 import { BEST_SELLER_SLUG, isBestSeller, type Category, type Product } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const FILTERS = [
-  ["all", "Semua"],
-  ["best", "Best seller"],
-  ["draft", "Disembunyikan"],
-] as const;
+  ["all", "products.admin.filterAll"],
+  ["best", "admin.dashboard.bestSeller"],
+  ["draft", "products.admin.filterDraft"],
+] as const satisfies readonly (readonly [string, TranslationKey])[];
 
 export default function AdminClient({ canManageProducts }: { canManageProducts: boolean }) {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +41,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
       products: Product[];
       categories: Category[];
     };
-    if (!response.ok) throw new Error(data.error || "Katalog gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("products.admin.loadFailed"));
     setProducts(data.products);
     setCategories(data.categories);
   }
@@ -46,7 +49,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
   useEffect(() => {
     refresh()
       .catch((error) =>
-        toast.error(error instanceof Error ? error.message : "Katalog gagal dimuat."),
+        toast.error(error instanceof Error ? error.message : t("products.admin.loadFailed")),
       )
       .finally(() => setLoading(false));
   }, []);
@@ -66,11 +69,11 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
         body: JSON.stringify({ ...product, categoryIds }),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Perubahan gagal disimpan.");
+      if (!response.ok) throw new Error(data.error || t("products.admin.saveChangeFailed"));
       await refresh();
-      toast.success(currentlyBest ? "Label best seller dilepas." : "Produk ditandai best seller.");
+      toast.success(currentlyBest ? t("products.admin.bestSellerRemoved") : t("products.admin.bestSellerAdded"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Perubahan gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("products.admin.saveChangeFailed"));
     } finally {
       setBusy(false);
     }
@@ -89,11 +92,11 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-bold tracking-widest text-accent-foreground">
-            CATALOG MANAGEMENT
+            {t("products.admin.tag")}
           </p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Kelola produk</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{t("products.admin.title")}</h1>
           <p className="mt-1 text-muted-foreground">
-            Ubah katalog yang tampil di preview Crystal Lim.
+            {t("products.admin.subtitle")}
           </p>
         </div>
         {canManageProducts && (
@@ -103,7 +106,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
               setFormOpen(true);
             }}
           >
-            <Plus className="size-4" /> Tambah produk
+            <Plus className="size-4" /> {t("products.admin.addProduct")}
           </Button>
         )}
       </div>
@@ -112,19 +115,19 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
         <Card>
           <CardContent>
             <p className="text-2xl font-bold">{products.length}</p>
-            <p className="text-sm text-muted-foreground">Total produk</p>
+            <p className="text-sm text-muted-foreground">{t("admin.dashboard.totalProducts")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent>
             <p className="text-2xl font-bold">{products.filter((p) => p.published).length}</p>
-            <p className="text-sm text-muted-foreground">Tampil di toko</p>
+            <p className="text-sm text-muted-foreground">{t("admin.dashboard.publishedInStore")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent>
             <p className="text-2xl font-bold">{products.filter(isBestSeller).length}</p>
-            <p className="text-sm text-muted-foreground">Best seller</p>
+            <p className="text-sm text-muted-foreground">{t("admin.dashboard.bestSeller")}</p>
           </CardContent>
         </Card>
       </div>
@@ -133,14 +136,14 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-1 overflow-x-auto">
-              {FILTERS.map(([value, label]) => (
+              {FILTERS.map(([value, labelKey]) => (
                 <Button
                   key={value}
                   size="sm"
                   variant={filter === value ? "secondary" : "ghost"}
                   onClick={() => setFilter(value)}
                 >
-                  {label}
+                  {t(labelKey)}
                 </Button>
               ))}
             </div>
@@ -148,7 +151,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-8"
-                placeholder="Cari produk…"
+                placeholder={t("products.admin.searchPlaceholder")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -156,7 +159,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
           </div>
 
           {loading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">Memuat katalog…</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("products.admin.loading")}</p>
           ) : (
             <ProductsTable
               products={shown}
@@ -175,7 +178,7 @@ export default function AdminClient({ canManageProducts }: { canManageProducts: 
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        Perubahan hanya berlaku pada preview ini, belum mengubah katalog di crystal-lim.com.
+        {t("products.admin.previewNote")}
       </p>
 
       <ProductFormDialog

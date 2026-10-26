@@ -9,8 +9,10 @@ import UserDeleteAlert from "./UserDeleteAlert";
 import UserFormDialog from "./UserFormDialog";
 import UsersTable from "./UsersTable";
 import type { RoleOption, UserRow } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function UsersClient({ currentUserId }: { currentUserId: number }) {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +26,7 @@ export default function UsersClient({ currentUserId }: { currentUserId: number }
       fetch("/api/admin/roles", { cache: "no-store" }),
     ]);
     const usersData = (await usersRes.json()) as { error?: string; users: UserRow[] };
-    if (!usersRes.ok) throw new Error(usersData.error || "Data user gagal dimuat.");
+    if (!usersRes.ok) throw new Error(usersData.error || t("users.loadFailed"));
     const rolesData = (await rolesRes.json()) as { roles: RoleOption[] };
     setUsers(usersData.users);
     setRoles(rolesData.roles ?? []);
@@ -32,7 +34,7 @@ export default function UsersClient({ currentUserId }: { currentUserId: number }
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Data user gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("users.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -45,11 +47,11 @@ export default function UsersClient({ currentUserId }: { currentUserId: number }
         body: JSON.stringify(patch),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "User gagal diperbarui.");
+      if (!response.ok) throw new Error(data.error || t("users.updateFailed"));
       await refresh();
       toast.success(successMessage);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "User gagal diperbarui.");
+      toast.error(error instanceof Error ? error.message : t("users.updateFailed"));
     } finally {
       setBusy(false);
     }
@@ -59,14 +61,14 @@ export default function UsersClient({ currentUserId }: { currentUserId: number }
     <div className="space-y-6">
       <div className="flex justify-end">
         <Button onClick={() => setFormOpen(true)}>
-          <Plus className="size-4" /> Tambah user
+          <Plus className="size-4" /> {t("users.add")}
         </Button>
       </div>
 
       <Card>
         <CardContent>
           {loading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">Memuat user…</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("users.loading")}</p>
           ) : (
             <UsersTable
               users={users}
@@ -74,13 +76,13 @@ export default function UsersClient({ currentUserId }: { currentUserId: number }
               currentUserId={currentUserId}
               busy={busy}
               onChangeRole={(user, roleId) =>
-                patchUser(user, { roleId }, "Role user diperbarui.")
+                patchUser(user, { roleId }, t("users.roleUpdated"))
               }
               onToggleStatus={(user) =>
                 patchUser(
                   user,
                   { status: user.status === "active" ? "suspended" : "active" },
-                  user.status === "active" ? "User dinonaktifkan." : "User diaktifkan.",
+                  user.status === "active" ? t("users.suspended") : t("users.activated"),
                 )
               }
               onDelete={setDeleteTarget}

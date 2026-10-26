@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { postJson } from "@/lib/api-client";
 import type { RoleOption } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function UserFormDialog({
   open,
@@ -28,6 +29,7 @@ export default function UserFormDialog({
   roles: RoleOption[];
   onCreated: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,12 +48,12 @@ export default function UserFormDialog({
     setBusy(true);
     try {
       await postJson("/api/admin/users", { name, email, password, roleId: Number(roleId) });
-      toast.success("User baru berhasil dibuat.");
+      toast.success(t("users.form.created"));
       reset();
       onOpenChange(false);
       onCreated();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "User gagal dibuat.");
+      toast.error(error instanceof Error ? error.message : t("users.form.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -67,18 +69,18 @@ export default function UserFormDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tambah user</DialogTitle>
+          <DialogTitle>{t("users.form.title")}</DialogTitle>
           <DialogDescription>
-            Buat akun baru untuk mengelola admin panel Crystal Lim.
+            {t("users.form.hint")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="user-name">Nama</Label>
+            <Label htmlFor="user-name">{t("users.table.name")}</Label>
             <Input id="user-name" required value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="user-email">Email</Label>
+            <Label htmlFor="user-email">{t("common.email")}</Label>
             <Input
               id="user-email"
               required
@@ -88,7 +90,7 @@ export default function UserFormDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="user-password">Kata sandi</Label>
+            <Label htmlFor="user-password">{t("auth.password")}</Label>
             <Input
               id="user-password"
               required
@@ -99,14 +101,14 @@ export default function UserFormDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="user-role">Role</Label>
+            <Label htmlFor="user-role">{t("users.form.role")}</Label>
             <NativeSelect
               id="user-role"
               required
               value={roleId}
               onChange={(e) => setRoleId(e.target.value ? Number(e.target.value) : "")}
             >
-              <NativeSelectOption value="">Pilih role</NativeSelectOption>
+              <NativeSelectOption value="">{t("users.form.selectRole")}</NativeSelectOption>
               {roles.map((r) => (
                 <NativeSelectOption key={r.id} value={r.id}>
                   {r.name}
@@ -116,10 +118,10 @@ export default function UserFormDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Menyimpan…" : "Tambah user"}
+              {busy ? t("common.saving") : t("users.add")}
             </Button>
           </DialogFooter>
         </form>

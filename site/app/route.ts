@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { cookies } from "next/headers";
 import { BEST_SELLER_SLUG, listProducts, type Product } from "../db/catalog";
 import { getNumericSetting } from "../db/settings";
 import { getEffectiveUser } from "../lib/auth/permissions";
@@ -9,10 +10,13 @@ import { getShippingMode } from "../lib/shipping";
 
 export const dynamic = "force-dynamic";
 
+// .replace: editor/git (core.autocrlf di Windows) kadang menulis file ini dengan
+// CRLF, yang akan membuat startMarker/endMarker (ditulis dengan "\n" polos di
+// bawah) gagal match lewat indexOf dan storefront jatuh ke unavailablePage.
 const storefrontHtml = readFileSync(
   path.join(process.cwd(), "app", "storefront.html"),
   "utf-8",
-);
+).replace(/\r\n/g, "\n");
 
 const escape = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
@@ -29,11 +33,11 @@ function card(p: Product) {
     .join(" · ");
   return `<article class="product${outOfStock ? " out-of-stock" : ""}" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-stock="${p.stock}" data-image="${image}">
     <div class="product-media"><a href="${href}"><img src="${image}" alt="${name}" loading="lazy"></a>
-      ${isBestSeller ? '<span class="best-seller-badge">BEST SELLER</span>' : ""}
-      ${outOfStock ? '<span class="out-of-stock-badge">STOK HABIS</span>' : ""}
+      ${isBestSeller ? '<span class="best-seller-badge" data-i18n="product.bestSeller">BEST SELLER</span>' : ""}
+      ${outOfStock ? '<span class="out-of-stock-badge" data-i18n="product.outOfStock">STOK HABIS</span>' : ""}
       <button class="wish" type="button" aria-label="Simpan ${name}">♡</button></div>
     <div class="product-info"><p>${escape(eyebrow)}</p><h3><a href="${href}">${name}</a></h3>
-      <strong>${p.price}</strong><button class="add-button" type="button">${outOfStock ? "Stok Habis" : "Beli"}</button></div></article>`;
+      <strong>${p.price}</strong><button class="add-button" type="button" data-i18n="${outOfStock ? "product.outOfStock" : "product.buy"}">${outOfStock ? "Stok Habis" : "Beli"}</button></div></article>`;
 }
 
 function filterButton(slug: string, name: string) {
@@ -69,6 +73,7 @@ export async function GET() {
       return 0;
     });
     const shippingMode = await getShippingMode().catch(() => "auto" as const);
+    const lang = (await cookies()).get("lang")?.value === "en" ? "en" : "id";
 
     const effectiveUser = await getEffectiveUser().catch((error) => {
       console.error("Sesi pengguna gagal dibaca", error);
@@ -114,12 +119,13 @@ export async function GET() {
       `class="icon-button account-button${crystalUser.loggedIn ? " logged-in" : ""}" type="button" aria-label="${escape(accountLabel)}" title="${escape(accountLabel)}" aria-expanded="false"`,
     );
     const accountMenuHtml = crystalUser.loggedIn
-      ? `<a href="/user/dashboard">Akun Saya</a><a href="/user/alamat">Alamat Saya</a><a href="/user/wishlist">Wishlist</a><a href="#" id="account-signout">Keluar</a>`
-      : `<a href="/login">Masuk</a><a href="/daftar">Daftar</a>`;
+      ? `<a href="/user/dashboard" data-i18n="account.myAccount">Akun Saya</a><a href="/user/alamat" data-i18n="account.myAddress">Alamat Saya</a><a href="/user/wishlist" data-i18n="account.wishlist">Wishlist</a><a href="#" id="account-signout" data-i18n="account.signOut">Keluar</a>`
+      : `<a href="/login" data-i18n="account.signIn">Masuk</a><a href="/daftar" data-i18n="account.signUp">Daftar</a>`;
     html = html.replace('<div class="category-menu" id="account-menu" hidden></div>', `<div class="category-menu" id="account-menu" hidden>${accountMenuHtml}</div>`);
 
     const catalog = JSON.stringify(products).replace(/</g, "\\u003c");
     const userData = JSON.stringify(crystalUser).replace(/</g, "\\u003c");
+    html = html.replace('<script src="i18n.js"></script>', `<script>window.crystalLang=${JSON.stringify(lang)};</script><script src="i18n.js"></script>`);
     html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee},mode:${JSON.stringify(shippingMode)}};window.crystalUser=${userData};</script>`);
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   } catch (error) {

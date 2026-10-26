@@ -37,7 +37,8 @@ function syncOverlayAccess() {
     previousInert.set(el, el.inert); el.inert = true;
   }
 }
-drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-modal', 'true'); drawer.setAttribute('aria-label', 'Keranjang belanja');
+const t = (...args) => window.crystalI18n.t(...args);
+drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-modal', 'true'); drawer.setAttribute('aria-label', t('cart.title'));
 checkout.setAttribute('role', 'dialog'); checkout.setAttribute('aria-modal', 'true'); checkout.setAttribute('aria-label', 'Checkout');
 syncOverlayAccess();
 document.addEventListener('keydown', event => {
@@ -65,20 +66,20 @@ function renderCart() {
   const count = cart.length;
   const total = cartSubtotal();
   qs('.cart-count').textContent = count;
-  qs('.cart-button').setAttribute('aria-label', `Buka keranjang, ${count} barang`);
-  qs('.mobile-cart-count').textContent = `${count} barang`;
+  qs('.cart-button').setAttribute('aria-label', t('cart.openLabel', { count }));
+  qs('.mobile-cart-count').textContent = t('cart.itemsCount', { count });
   qs('.mobile-cart-total').textContent = rupiah.format(total);
   mobileBar.hidden = count === 0;
 
   if (!count) {
-    cartItems.innerHTML = '<div class="empty-cart"><span>◇</span><h3>Keranjang masih kosong</h3><p>Pilih kristal yang paling menarik perhatianmu.</p></div>';
+    cartItems.innerHTML = `<div class="empty-cart"><span>◇</span><h3>${t('cart.empty')}</h3><p>${t('cart.emptyHint')}</p></div>`;
     cartFooter.hidden = true;
   } else {
     cartItems.innerHTML = grouped.map(item => `
       <div class="cart-item">
         <img src="${escapeHtml(item.image)}" alt="">
-        <div><b>${escapeHtml(item.name)}</b><small>${rupiah.format(item.price)} / buah</small><div class="cart-quantity"><button data-cart-change="-1" data-index="${item.index}" aria-label="Kurangi ${escapeHtml(item.name)}">−</button><span aria-label="Jumlah">${item.quantity}</span><button data-cart-change="1" data-index="${item.index}" aria-label="Tambah ${escapeHtml(item.name)}" ${item.quantity >= 10 ? 'disabled' : ''}>+</button></div></div>
-        <button class="remove-item" data-id="${escapeHtml(item.id)}" aria-label="Hapus ${escapeHtml(item.name)}">×</button>
+        <div><b>${escapeHtml(item.name)}</b><small>${rupiah.format(item.price)} ${t('cart.perItem')}</small><div class="cart-quantity"><button data-cart-change="-1" data-index="${item.index}" aria-label="${t('cart.decrease', { name: item.name })}">−</button><span aria-label="Jumlah">${item.quantity}</span><button data-cart-change="1" data-index="${item.index}" aria-label="${t('cart.increase', { name: item.name })}" ${item.quantity >= 10 ? 'disabled' : ''}>+</button></div></div>
+        <button class="remove-item" data-id="${escapeHtml(item.id)}" aria-label="${t('cart.remove', { name: item.name })}">×</button>
       </div>`).join('');
     cartFooter.hidden = false;
     qs('.cart-total strong').textContent = rupiah.format(total);
@@ -153,7 +154,7 @@ cartItems.addEventListener('click', event => {
 const catalogProducts = qsa('.product');
 const emptyResults = document.createElement('div');
 emptyResults.className = 'empty-results'; emptyResults.hidden = true;
-emptyResults.innerHTML = '<h3>Produk belum ditemukan</h3><p>Coba kata lain atau tampilkan semua koleksi.</p><button type="button">Reset pencarian & filter</button>';
+emptyResults.innerHTML = `<h3>${t('search.emptyTitle')}</h3><p>${t('search.emptyHint')}</p><button type="button">${t('search.emptyReset')}</button>`;
 qs('.product-grid').after(emptyResults);
 emptyResults.querySelector('button').addEventListener('click', () => { qs('#search-input').value = ''; qs('.filter[data-filter="all"]').click(); });
 qs('#result-count').parentElement.setAttribute('role', 'status');
@@ -242,7 +243,7 @@ qs('.newsletter-form')?.addEventListener('submit', async event => {
   event.preventDefault();
   const status = qs('#newsletter-status');
   const email = event.target.elements.email.value;
-  status.textContent = 'Mendaftarkan…';
+  status.textContent = t('newsletter.submitting');
   try {
     const response = await fetch('/api/newsletter', {
       method: 'POST',
@@ -250,11 +251,11 @@ qs('.newsletter-form')?.addEventListener('submit', async event => {
       body: JSON.stringify({ email }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Pendaftaran gagal.');
-    status.textContent = 'Terima kasih sudah berlangganan!';
+    if (!response.ok) throw new Error(data.error || t('newsletter.error'));
+    status.textContent = t('newsletter.success');
     event.target.reset();
   } catch (error) {
-    status.textContent = error.message || 'Pendaftaran gagal. Coba lagi.';
+    status.textContent = error.message || t('newsletter.error');
   }
 });
 
@@ -294,7 +295,7 @@ function closeMobileMenu(restoreFocus = false) {
   mobileMenu.hidden = true;
   menuButton.classList.remove('open');
   menuButton.setAttribute('aria-expanded', 'false');
-  menuButton.setAttribute('aria-label', 'Buka menu');
+  menuButton.setAttribute('aria-label', t('header.menuOpen'));
   qsa('details', mobileMenu).forEach(group => { group.open = false; });
   if (restoreFocus) menuButton.focus();
 }
@@ -305,7 +306,7 @@ menuButton.addEventListener('click', () => {
   mobileMenu.hidden = false;
   menuButton.classList.add('open');
   menuButton.setAttribute('aria-expanded', 'true');
-  menuButton.setAttribute('aria-label', 'Tutup menu');
+  menuButton.setAttribute('aria-label', t('header.menuClose'));
   qs('a', mobileMenu).focus();
 });
 qsa('.mobile-menu a').forEach(link => link.addEventListener('click', () => closeMobileMenu()));
@@ -354,7 +355,7 @@ if (paymentParams.has('payment')) {
   const banner = document.createElement('div');
   banner.className = 'announcement';
   banner.setAttribute('role', 'status');
-  banner.innerHTML = `<strong>${success ? 'Pembayaran berhasil' : 'Pembayaran belum selesai'}</strong><span>${success ? 'Terima kasih sudah berbelanja di Crystal Lim!' : 'Silakan coba lagi dari keranjang.'}</span>`;
+  banner.innerHTML = `<strong>${success ? t('announcement.paidTitle') : t('announcement.unpaidTitle')}</strong><span>${success ? t('announcement.paidBody') : t('announcement.unpaidBody')}</span>`;
   qs('.announcement').after(banner);
   history.replaceState(null, '', location.pathname);
 }

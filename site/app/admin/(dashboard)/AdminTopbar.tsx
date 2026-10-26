@@ -13,6 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import LanguageSwitcher from "@/components/shared/LanguageSwitcher";
+import { useTranslation } from "@/lib/i18n/context";
 
 type TopbarUser = {
   name: string;
@@ -26,6 +28,7 @@ type TopbarUser = {
 type RoleOption = { slug: string; name: string };
 
 export default function AdminTopbar({ user }: { user: TopbarUser }) {
+  const { t } = useTranslation();
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
 
   useEffect(() => {
@@ -60,17 +63,14 @@ export default function AdminTopbar({ user }: { user: TopbarUser }) {
     <>
       {user.viewingAs && (
         <div className="flex flex-wrap items-center justify-center gap-3 bg-[#3a2f1f] px-5 py-2.5 text-sm text-[#f5eedf]">
-          <span>
-            Sedang melihat sebagai: <strong>{user.effectiveRoleSlug}</strong> (akun asli:{" "}
-            {user.actualRoleName})
-          </span>
+          <span>{t("admin.topbar.viewingAs", { role: user.effectiveRoleSlug, actual: user.actualRoleName })}</span>
           <Button
             size="sm"
             variant="outline"
             className="h-7 border-[#d7c6a6] bg-transparent text-[#f5eedf] hover:bg-white/10 hover:text-[#f5eedf]"
             onClick={() => switchViewAs("")}
           >
-            Kembali ke {user.actualRoleName}
+            {t("userTopbar.backTo", { role: user.actualRoleName })}
           </Button>
         </div>
       )}
@@ -92,15 +92,16 @@ export default function AdminTopbar({ user }: { user: TopbarUser }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
-                  Lihat sebagai:{" "}
-                  {user.viewingAs ? user.effectiveRoleSlug : `${user.actualRoleName} (asli)`}
+                  {t("admin.topbar.viewAsButton", {
+                    current: user.viewingAs ? user.effectiveRoleSlug : t("admin.topbar.actualSuffix", { role: user.actualRoleName }),
+                  })}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Lihat sebagai</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("admin.topbar.viewAsLabel")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => switchViewAs("")}>
-                  {user.actualRoleName} (asli)
+                  {t("admin.topbar.actualSuffix", { role: user.actualRoleName })}
                 </DropdownMenuItem>
                 {roleOptions
                   .filter((r) => r.slug !== user.actualRoleSlug)
@@ -113,13 +114,14 @@ export default function AdminTopbar({ user }: { user: TopbarUser }) {
             </DropdownMenu>
           )}
           <span className="hidden text-sm text-muted-foreground sm:inline">{user.email}</span>
+          <LanguageSwitcher />
           <Button variant="ghost" size="sm" asChild>
             <Link href="/">
-              <Store className="size-4" /> Lihat toko
+              <Store className="size-4" /> {t("common.viewStore")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="size-4" /> Keluar
+            <LogOut className="size-4" /> {t("common.signOut")}
           </Button>
         </div>
       </header>

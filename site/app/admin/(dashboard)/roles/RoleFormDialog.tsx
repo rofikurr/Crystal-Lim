@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { postJson } from "@/lib/api-client";
 import type { Permission } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function RoleFormDialog({
   open,
@@ -28,6 +29,7 @@ export default function RoleFormDialog({
   permissions: Permission[];
   onCreated: () => void;
 }) {
+  const { t } = useTranslation();
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -49,12 +51,12 @@ export default function RoleFormDialog({
     setBusy(true);
     try {
       await postJson("/api/admin/roles", { slug, name, permissionSlugs: selected });
-      toast.success("Role baru berhasil dibuat.");
+      toast.success(t("roles.form.created"));
       reset();
       onOpenChange(false);
       onCreated();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Role gagal dibuat.");
+      toast.error(error instanceof Error ? error.message : t("roles.form.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -70,14 +72,14 @@ export default function RoleFormDialog({
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Buat role baru</DialogTitle>
+          <DialogTitle>{t("roles.form.title")}</DialogTitle>
           <DialogDescription>
-            Tentukan permission apa saja yang dimiliki role ini.
+            {t("roles.form.hint")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="role-slug">Slug</Label>
+            <Label htmlFor="role-slug">{t("roles.form.slug")}</Label>
             <Input
               id="role-slug"
               required
@@ -88,7 +90,7 @@ export default function RoleFormDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="role-name">Nama</Label>
+            <Label htmlFor="role-name">{t("roles.form.name")}</Label>
             <Input
               id="role-name"
               required
@@ -98,7 +100,7 @@ export default function RoleFormDialog({
             />
           </div>
           <div className="space-y-3">
-            <Label>Permission</Label>
+            <Label>{t("roles.form.permissions")}</Label>
             {Object.entries(grouped).map(([group, perms]) => (
               <fieldset key={group} className="rounded-md border border-border p-3">
                 <legend className="px-1 text-xs font-semibold text-muted-foreground">
@@ -126,10 +128,10 @@ export default function RoleFormDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Menyimpan…" : "Buat role"}
+              {busy ? t("common.saving") : t("roles.form.save")}
             </Button>
           </DialogFooter>
         </form>

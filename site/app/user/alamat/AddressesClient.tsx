@@ -9,8 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import AddressDeleteAlert from "./AddressDeleteAlert";
 import AddressFormDialog from "./AddressFormDialog";
 import type { Address } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function AddressesClient() {
+  const { t } = useTranslation();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -20,13 +22,13 @@ export default function AddressesClient() {
   async function refresh() {
     const response = await fetch("/api/user/addresses", { cache: "no-store" });
     const data = (await response.json()) as { error?: string; addresses: Address[] };
-    if (!response.ok) throw new Error(data.error || "Alamat gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("address.loadFailed"));
     setAddresses(data.addresses);
   }
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Alamat gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("address.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -40,14 +42,14 @@ export default function AddressesClient() {
               setFormOpen(true);
             }}
           >
-            <Plus className="size-4" /> Tambah alamat
+            <Plus className="size-4" /> {t("address.add")}
           </Button>
         </div>
 
         {loading ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Memuat alamat…</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("address.loading")}</p>
         ) : addresses.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">Belum ada alamat tersimpan.</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("address.empty")}</p>
         ) : (
           <div className="flex flex-col gap-3">
             {addresses.map((address) => (
@@ -60,7 +62,7 @@ export default function AddressesClient() {
                     <p className="font-medium">{address.label}</p>
                     {address.isDefault && (
                       <Badge variant="secondary">
-                        <Star className="size-3" /> Utama
+                        <Star className="size-3" /> {t("address.default")}
                       </Badge>
                     )}
                   </div>
@@ -76,7 +78,7 @@ export default function AddressesClient() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    title="Edit"
+                    title={t("common.edit")}
                     onClick={() => {
                       setEditing(address);
                       setFormOpen(true);
@@ -87,7 +89,7 @@ export default function AddressesClient() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    title="Hapus"
+                    title={t("common.delete")}
                     className="text-destructive hover:text-destructive"
                     onClick={() => setDeleteTarget(address)}
                   >

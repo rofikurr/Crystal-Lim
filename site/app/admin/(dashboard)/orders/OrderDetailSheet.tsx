@@ -14,7 +14,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { patchJson } from "@/lib/api-client";
-import { money, STATUS_LABELS, type Order } from "./types";
+import { money, STATUS_KEYS, type Order } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function OrderDetailSheet({
   order,
@@ -27,6 +28,7 @@ export default function OrderDetailSheet({
   onOpenChange: (open: boolean) => void;
   onSaved: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [trackingNumber, setTrackingNumber] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
 
@@ -40,9 +42,9 @@ export default function OrderDetailSheet({
     try {
       await patchJson(`/api/admin/orders/${encodeURIComponent(order.id)}`, { trackingNumber });
       await onSaved();
-      toast.success("Nomor resi disimpan.");
+      toast.success(t("orders.detail.trackingSaved"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nomor resi gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("orders.detail.trackingSaveFailed"));
     } finally {
       setSavingTracking(false);
     }
@@ -58,24 +60,24 @@ export default function OrderDetailSheet({
               <SheetDescription>{order.id}</SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-4 px-4 pb-4">
-              <Badge className="w-fit">{STATUS_LABELS[order.status]}</Badge>
+              <Badge className="w-fit">{t(STATUS_KEYS[order.status])}</Badge>
               <div>
-                <p className="text-sm font-semibold">Kontak</p>
+                <p className="text-sm font-semibold">{t("orders.detail.contact")}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {order.customerEmail} · {order.customerPhone}
                 </p>
               </div>
               <div>
-                <p className="text-sm font-semibold">Alamat pengiriman</p>
+                <p className="text-sm font-semibold">{t("orders.detail.shippingAddress")}</p>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                   {order.shippingAddress}
                 </p>
                 {order.notes && (
-                  <p className="mt-1 text-sm text-muted-foreground">Catatan: {order.notes}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("orders.detail.notes", { notes: order.notes })}</p>
                 )}
               </div>
               <div>
-                <p className="text-sm font-semibold">Produk</p>
+                <p className="text-sm font-semibold">{t("orders.detail.products")}</p>
                 <div className="mt-2 flex flex-col gap-2">
                   {order.items.map((item, i) => (
                     <div key={i} className="flex items-center gap-3 text-sm">
@@ -97,29 +99,29 @@ export default function OrderDetailSheet({
                 </div>
               </div>
               <dl className="grid grid-cols-2 gap-2 text-sm">
-                <dt className="text-muted-foreground">Subtotal</dt>
+                <dt className="text-muted-foreground">{t("common.subtotal")}</dt>
                 <dd className="text-right font-medium">{money.format(order.subtotal)}</dd>
-                <dt className="text-muted-foreground">Ongkir</dt>
+                <dt className="text-muted-foreground">{t("common.shippingFee")}</dt>
                 <dd className="text-right font-medium">{money.format(order.shippingFee)}</dd>
-                <dt className="text-muted-foreground">Total</dt>
+                <dt className="text-muted-foreground">{t("common.total")}</dt>
                 <dd className="text-right font-semibold">{money.format(order.total)}</dd>
               </dl>
               <div className="space-y-1.5">
-                <Label htmlFor="order-tracking-number">Nomor resi</Label>
+                <Label htmlFor="order-tracking-number">{t("orders.detail.trackingNumber")}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="order-tracking-number"
-                    placeholder="Isi setelah paket diserahkan ke kurir"
+                    placeholder={t("orders.detail.trackingPlaceholder")}
                     value={trackingNumber}
                     onChange={(e) => setTrackingNumber(e.target.value)}
                   />
                   <Button type="button" disabled={savingTracking} onClick={saveTrackingNumber}>
-                    {savingTracking ? "Menyimpan…" : "Simpan"}
+                    {savingTracking ? t("common.saving") : t("common.save")}
                   </Button>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold">Dibuat</p>
+                <p className="text-sm font-semibold">{t("orders.detail.createdAt")}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{order.createdAt}</p>
               </div>
             </div>

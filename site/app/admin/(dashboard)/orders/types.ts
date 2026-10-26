@@ -1,4 +1,5 @@
 import { formatRupiah } from "../../../../lib/format";
+import type { TranslationKey } from "../../../../lib/i18n/translations";
 
 export type OrderStatus = "pending" | "paid" | "shipped" | "completed" | "cancelled" | "expired";
 
@@ -29,13 +30,13 @@ export type Order = {
   items: OrderItem[];
 };
 
-export const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: "Menunggu bayar",
-  paid: "Dibayar",
-  shipped: "Dikirim",
-  completed: "Selesai",
-  cancelled: "Dibatalkan",
-  expired: "Kedaluwarsa",
+export const STATUS_KEYS: Record<OrderStatus, TranslationKey> = {
+  pending: "orderStatus.pending",
+  paid: "orderStatus.paid",
+  shipped: "orderStatus.shipped",
+  completed: "orderStatus.completed",
+  cancelled: "orderStatus.cancelled",
+  expired: "orderStatus.expired",
 };
 
 export const money = { format: formatRupiah };

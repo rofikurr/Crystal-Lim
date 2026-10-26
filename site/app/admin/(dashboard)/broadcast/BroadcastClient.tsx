@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "@/lib/i18n/context";
 
 type Broadcast = {
   id: number;
@@ -37,6 +38,7 @@ type Broadcast = {
 };
 
 export default function BroadcastClient() {
+  const { t } = useTranslation();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -47,13 +49,13 @@ export default function BroadcastClient() {
   async function refresh() {
     const response = await fetch("/api/admin/broadcasts", { cache: "no-store" });
     const data = (await response.json()) as { error?: string; broadcasts: Broadcast[] };
-    if (!response.ok) throw new Error(data.error || "Riwayat gagal dimuat.");
+    if (!response.ok) throw new Error(data.error || t("broadcast.loadFailed"));
     setHistory(data.broadcasts);
   }
 
   useEffect(() => {
     refresh()
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Riwayat gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("broadcast.loadFailed")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -70,21 +72,21 @@ export default function BroadcastClient() {
         recipientCount?: number;
         failedCount?: number;
       };
-      if (!response.ok) throw new Error(data.error || "Broadcast gagal dikirim.");
+      if (!response.ok) throw new Error(data.error || t("broadcast.sendFailed"));
       const { recipientCount = 0, failedCount = 0 } = data;
       if (failedCount === 0) {
-        toast.success(`Broadcast terkirim ke ${recipientCount} pelanggan.`);
+        toast.success(t("broadcast.sentTo", { count: recipientCount }));
       } else if (failedCount < recipientCount) {
-        toast.warning(`Terkirim ke ${recipientCount - failedCount} dari ${recipientCount} pelanggan.`);
+        toast.warning(t("broadcast.partialSent", { sent: recipientCount - failedCount, total: recipientCount }));
       } else {
-        toast.error("Broadcast gagal terkirim ke semua pelanggan.");
+        toast.error(t("broadcast.allFailed"));
       }
       setSubject("");
       setBody("");
       setConfirmOpen(false);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Broadcast gagal dikirim.");
+      toast.error(error instanceof Error ? error.message : t("broadcast.sendFailed"));
       await refresh();
     } finally {
       setBusy(false);
@@ -96,28 +98,28 @@ export default function BroadcastClient() {
       <Card>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="broadcast-subject">Subjek email</Label>
+            <Label htmlFor="broadcast-subject">{t("broadcast.subject")}</Label>
             <Input
               id="broadcast-subject"
               maxLength={200}
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Mis. Koleksi baru bulan ini!"
+              placeholder={t("broadcast.subjectPlaceholder")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="broadcast-body">Isi pesan</Label>
+            <Label htmlFor="broadcast-body">{t("broadcast.body")}</Label>
             <Textarea
               id="broadcast-body"
               rows={8}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Tulis isi broadcast di sini. Satu baris kosong memisahkan paragraf."
+              placeholder={t("broadcast.bodyPlaceholder")}
             />
           </div>
           <div className="flex justify-end">
             <Button disabled={!subject.trim() || !body.trim()} onClick={() => setConfirmOpen(true)}>
-              Kirim sekarang
+              {t("broadcast.sendNow")}
             </Button>
           </div>
         </CardContent>
@@ -125,18 +127,18 @@ export default function BroadcastClient() {
 
       <Card>
         <CardContent>
-          <h2 className="mb-4 text-lg font-semibold">Riwayat broadcast</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("broadcast.history")}</h2>
           {loading ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">Memuat riwayat…</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("broadcast.loadingHistory")}</p>
           ) : history.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">Belum ada broadcast terkirim.</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("broadcast.noHistory")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Subjek</TableHead>
-                  <TableHead>Terkirim</TableHead>
-                  <TableHead>Tanggal</TableHead>
+                  <TableHead>{t("broadcast.table.subject")}</TableHead>
+                  <TableHead>{t("broadcast.table.sent")}</TableHead>
+                  <TableHead>{t("broadcast.table.date")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -147,7 +149,7 @@ export default function BroadcastClient() {
                       <TableCell className="font-medium">{item.subject}</TableCell>
                       <TableCell>
                         <Badge variant={item.failedCount === 0 ? "secondary" : "destructive"}>
-                          {success} / {item.recipientCount} berhasil
+                          {t("broadcast.table.successRatio", { success, total: item.recipientCount })}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{item.createdAt}</TableCell>
@@ -163,14 +165,13 @@ export default function BroadcastClient() {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Kirim broadcast ini?</AlertDialogTitle>
+            <AlertDialogTitle>{t("broadcast.confirm.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Email akan langsung terkirim ke semua pelanggan yang berlangganan newsletter. Tindakan
-              ini tidak bisa dibatalkan setelah dikirim.
+              {t("broadcast.confirm.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Batal</AlertDialogCancel>
+            <AlertDialogCancel disabled={busy}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               disabled={busy}
               onClick={(event) => {
@@ -178,7 +179,7 @@ export default function BroadcastClient() {
                 send();
               }}
             >
-              {busy ? "Mengirim…" : "Ya, kirim sekarang"}
+              {busy ? t("broadcast.confirm.sending") : t("broadcast.confirm.sendNow")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

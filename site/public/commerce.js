@@ -1,5 +1,6 @@
 (() => {
   const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const t = (...args) => window.crystalI18n.t(...args);
   const products = window.crystalCatalog;
   const detail = document.createElement('section');
   detail.className = 'product-detail'; detail.hidden = true;
@@ -28,19 +29,19 @@
     const stock = Number.isFinite(product.stock) ? product.stock : 10;
     const outOfStock = stock <= 0;
     const maxQty = Math.max(1, Math.min(10, stock));
-    const stockNote = outOfStock ? 'Stok habis saat ini — nantikan restock.' : (stock <= 5 ? `Tersisa ${stock} buah.` : '');
-    detail.innerHTML = `<button class="detail-back" type="button">← Kembali ke koleksi</button>
+    const stockNote = outOfStock ? t('detail.outOfStockNote') : (stock <= 5 ? t('detail.lowStockNote', { stock }) : '');
+    detail.innerHTML = `<button class="detail-back" type="button">${t('detail.back')}</button>
       <div class="detail-layout"><div class="detail-gallery">
         <div class="detail-image-wrap"><img class="detail-main-image" src="${esc(product.image)}" alt="${esc(product.name)}"><span class="detail-image-count"></span></div>
-        <div class="detail-gallery-nav"><button class="image-prev" aria-label="Foto sebelumnya">←</button><span>Detail produk asli Crystal Lim</span><button class="image-next" aria-label="Foto berikutnya">→</button></div>
-        <div class="detail-thumbnails">${product.images.map((src,i)=>`<button class="detail-thumb" data-index="${i}" aria-label="Lihat foto ${i+1}" aria-pressed="false"><img src="${esc(src)}" alt="" loading="lazy"></button>`).join('')}</div>
-      </div><div class="detail-copy"><p class="eyebrow">THE COLLECTION / CRYSTAL LIM</p><h1>${esc(product.name)}</h1><strong class="detail-price">${rupiah.format(product.price)}</strong>
+        <div class="detail-gallery-nav"><button class="image-prev" aria-label="${t('detail.prevPhoto')}">←</button><span>${t('detail.originalPhotos')}</span><button class="image-next" aria-label="${t('detail.nextPhoto')}">→</button></div>
+        <div class="detail-thumbnails">${product.images.map((src,i)=>`<button class="detail-thumb" data-index="${i}" aria-label="${t('detail.viewPhoto', { index: i + 1 })}" aria-pressed="false"><img src="${esc(src)}" alt="" loading="lazy"></button>`).join('')}</div>
+      </div><div class="detail-copy"><p class="eyebrow">${t('detail.eyebrow')}</p><h1>${esc(product.name)}</h1><strong class="detail-price">${rupiah.format(product.price)}</strong>
       <p class="detail-description">${esc(product.description)}</p>${stockNote ? `<p class="detail-stock-note">${esc(stockNote)}</p>` : ''}
-      <label class="detail-quantity"${outOfStock ? ' hidden' : ''}>Jumlah <input type="number" min="1" max="${maxQty}" step="1" value="1" inputmode="numeric" required${outOfStock ? ' disabled' : ''}></label>
-      <button class="detail-buy" type="button"${outOfStock ? ' disabled' : ''}>${outOfStock ? 'Stok habis' : 'Lanjut isi alamat <span>→</span>'}</button>
-      <button class="detail-add" type="button"${outOfStock ? ' disabled' : ''}>Tambahkan ke keranjang</button><p class="detail-feedback" role="status"></p>
-      <div class="detail-facts"><p><b>Pengiriman</b><span>Tarif API setelah alamat diisi</span></p><p><b>Pembayaran</b><span>Integrasi sedang disiapkan</span></p></div>
-      <a class="detail-source" href="${esc(product.url)}" target="_blank" rel="noopener">Lihat spesifikasi di situs asli ↗</a></div></div>`;
+      <label class="detail-quantity"${outOfStock ? ' hidden' : ''}>${t('detail.quantity')} <input type="number" min="1" max="${maxQty}" step="1" value="1" inputmode="numeric" required${outOfStock ? ' disabled' : ''}></label>
+      <button class="detail-buy" type="button"${outOfStock ? ' disabled' : ''}>${outOfStock ? t('detail.outOfStockButton') : `${t('detail.continueToAddress')}`}</button>
+      <button class="detail-add" type="button"${outOfStock ? ' disabled' : ''}>${t('detail.addToCart')}</button><p class="detail-feedback" role="status"></p>
+      <div class="detail-facts"><p><b>${t('detail.shippingLabel')}</b><span>${t('detail.shippingValue')}</span></p><p><b>${t('detail.paymentLabel')}</b><span>${t('detail.paymentValue')}</span></p></div>
+      <a class="detail-source" href="${esc(product.url)}" target="_blank" rel="noopener">${t('detail.viewSource')}</a></div></div>`;
     qs('main').hidden = true; detail.hidden = false; window.scrollTo(0,0);
     qs('.detail-back',detail).addEventListener('click',closeDetail);
     qs('.image-prev',detail).addEventListener('click',()=>showImage(activeImage-1));
@@ -52,13 +53,13 @@
       if(!input.reportValidity()) return false;
       const existing=cart.filter(p=>p.id===product.id).length;
       const count=ensureQuantity ? Math.max(0,Number(input.value)-existing) : Number(input.value);
-      if(existing+count>maxQty){qs('.detail-feedback',detail).textContent=`Maksimal ${maxQty} buah per produk (sesuai stok tersedia). Ubah jumlah di keranjang.`;return false;}
+      if(existing+count>maxQty){qs('.detail-feedback',detail).textContent=t('detail.maxQuantity', { max: maxQty });return false;}
       for(let i=0;i<count;i++) cart.push({id:product.id,name:product.name,price:product.price,image:product.image});
       renderCart(); return true;
     };
-    qs('.detail-add',detail).addEventListener('click',()=>{if(add()) qs('.detail-feedback',detail).textContent='Produk ditambahkan ke keranjang.';});
+    qs('.detail-add',detail).addEventListener('click',()=>{if(add()) qs('.detail-feedback',detail).textContent=t('detail.addedToCart');});
     qs('.detail-buy',detail).addEventListener('click',()=>{if(add(true)) openCheckout();});
-    qs('.detail-main-image',detail).addEventListener('error',event=>{ if(event.target.getAttribute('src')!==product.image) { event.target.src=product.image; qs('.detail-image-count',detail).textContent='Foto tambahan belum termuat'; } });
+    qs('.detail-main-image',detail).addEventListener('error',event=>{ if(event.target.getAttribute('src')!==product.image) { event.target.src=product.image; qs('.detail-image-count',detail).textContent=t('detail.photoNotLoaded'); } });
     showImage(0); qs('.detail-back',detail).focus();
   }
   qsa('.product').forEach(card=>{
@@ -70,7 +71,7 @@
   if (savedAddresses.length) {
     const wrap = qs('#saved-addresses');
     wrap.hidden = false;
-    wrap.innerHTML = `<p class="shipping-help">Pakai alamat tersimpan:</p><div class="saved-address-options">${savedAddresses.map((a,i)=>`<button type="button" class="saved-address-option" data-index="${i}">${esc(a.label)}</button>`).join('')}</div>`;
+    wrap.innerHTML = `<p class="shipping-help">${t('checkout.savedAddresses')}</p><div class="saved-address-options">${savedAddresses.map((a,i)=>`<button type="button" class="saved-address-option" data-index="${i}">${esc(a.label)}</button>`).join('')}</div>`;
     qsa('.saved-address-option', wrap).forEach(button => button.addEventListener('click', () => {
       const addr = savedAddresses[Number(button.dataset.index)];
       const formEl = qs('.checkout-form');
@@ -97,7 +98,7 @@
     qs('.summary-total').textContent=rupiah.format(cartSubtotal()+fee);
   }
   window.addEventListener('cart:changed',()=>{
-    if(selectedShipping){selectedShipping=null;shippingOptionsEl.innerHTML='';shippingStatus.textContent='Keranjang berubah — cek ongkos kirim lagi.';}
+    if(selectedShipping){selectedShipping=null;shippingOptionsEl.innerHTML='';shippingStatus.textContent=t('checkout.cartChanged');}
     updateShippingTotal();
   });
   window.addEventListener('checkout:closed',()=>{paymentController?.abort();});
@@ -105,14 +106,14 @@
   async function api(path,body,signal) {
     const response=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal});
     const data=await response.json().catch(()=>({}));
-    if(!response.ok) throw Error(data.error||'Permintaan gagal. Coba lagi.');
+    if(!response.ok) throw Error(data.error||t('checkout.genericError'));
     return data;
   }
   function selectShipping(option) { selectedShipping=option; updateShippingTotal(); }
   function renderShippingOptions(options) {
     shippingOptionsEl.innerHTML=options.map((o,i)=>`<label class="shipping-option">
       <input type="radio" name="shipping-option" value="${i}"${i===0?' checked':''}>
-      <span><b>${esc(o.courierName)} — ${esc(o.service)}</b><small>${esc(o.description)} · estimasi ${esc(o.etd)}</small></span>
+      <span><b>${esc(o.courierName)} — ${esc(o.service)}</b><small>${esc(o.description)} · ${t('checkout.estimate')} ${esc(o.etd)}</small></span>
       <strong>${rupiah.format(o.cost)}</strong>
     </label>`).join('');
     qsa('input[name="shipping-option"]',shippingOptionsEl).forEach((input,i)=>input.addEventListener('change',()=>selectShipping(options[i])));
@@ -126,8 +127,8 @@
   quoteButton?.addEventListener('click',async()=>{
     if(quoting) return;
     if(!addressFieldsValid()) return;
-    if(!cart.length){shippingStatus.textContent='Keranjang masih kosong.';return;}
-    quoting=true;quoteButton.disabled=true;shippingStatus.textContent='Mencari opsi pengiriman…';shippingOptionsEl.innerHTML='';
+    if(!cart.length){shippingStatus.textContent=t('checkout.cartEmpty');return;}
+    quoting=true;quoteButton.disabled=true;shippingStatus.textContent=t('checkout.searchingShipping');shippingOptionsEl.innerHTML='';
     try{
       const data=await api('/api/shipping/quote',{postal:form.elements.postal.value,items:items()});
       shippingStatus.textContent='';
@@ -139,16 +140,16 @@
   });
   form.addEventListener('submit',async event=>{
     event.preventDefault();if(paying||!form.reportValidity()||!cart.length)return;
-    paying=true;payButton.disabled=true;payStatus.textContent='Menyiapkan pembayaran…';
+    paying=true;payButton.disabled=true;payStatus.textContent=t('checkout.preparingPayment');
     const customer=Object.fromEntries(new FormData(form));
     if(selectedShipping){customer.shippingCourier=selectedShipping.courier;customer.shippingService=selectedShipping.service;}
     qsa('input,textarea,button',form).forEach(el=>el.disabled=true);
     paymentController=new AbortController();const timeout=setTimeout(()=>paymentController.abort(),25000);
     try{
       const data=await api('/api/checkout',{customer,items:items()},paymentController.signal);
-      const url=new URL(data.redirectUrl);if(url.protocol!=='https:'||!/^checkout(-staging)?\.xendit\.co$/.test(url.hostname))throw Error('Alamat pembayaran tidak valid.');
+      const url=new URL(data.redirectUrl);if(url.protocol!=='https:'||!/^checkout(-staging)?\.xendit\.co$/.test(url.hostname))throw Error(t('checkout.invalidPaymentUrl'));
       location.assign(url.href);
-    }catch(error){payStatus.textContent=error.name==='AbortError'?'Permintaan terlalu lama. Coba lagi.':error.message;}
+    }catch(error){payStatus.textContent=error.name==='AbortError'?t('checkout.timeout'):error.message;}
     finally{clearTimeout(timeout);paying=false;qsa('input,textarea,button',form).forEach(el=>el.disabled=false);payButton.disabled=false;}
   });
 })();

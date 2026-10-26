@@ -11,18 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { money, STATUS_LABELS, type Order, type OrderStatus } from "../orders/types";
+import { money, STATUS_KEYS, type Order, type OrderStatus } from "../orders/types";
 import RevenueChart from "../RevenueChart";
+import { useTranslation } from "@/lib/i18n/context";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type Period = "today" | "7d" | "30d" | "month" | "year" | "custom";
 
-const PERIODS: { key: Period; label: string }[] = [
-  { key: "today", label: "Hari ini" },
-  { key: "7d", label: "7 hari" },
-  { key: "30d", label: "30 hari" },
-  { key: "month", label: "Bulan ini" },
-  { key: "year", label: "Tahun ini" },
-  { key: "custom", label: "Custom" },
+const PERIODS: { key: Period; labelKey: TranslationKey }[] = [
+  { key: "today", labelKey: "report.period.today" },
+  { key: "7d", labelKey: "report.period.7d" },
+  { key: "30d", labelKey: "report.period.30d" },
+  { key: "month", labelKey: "report.period.month" },
+  { key: "year", labelKey: "report.period.year" },
+  { key: "custom", labelKey: "report.period.custom" },
 ];
 
 const PAGE_SIZE = 10;
@@ -87,18 +89,20 @@ const BADGE_VARIANT: Partial<Record<OrderStatus, "secondary" | "outline" | "dest
 };
 
 function PercentBadge({ current, previous }: { current: number; previous: number }) {
+  const { t } = useTranslation();
   if (previous === 0 && current === 0) return null;
   const pct = previous > 0 ? ((current - previous) / previous) * 100 : 100;
   const up = pct >= 0;
   return (
     <span className={cn("inline-flex items-center gap-1 text-xs font-medium", up ? "text-green-600" : "text-red-600")}>
       {up ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />}
-      {Math.abs(pct).toFixed(0)}% vs periode sebelumnya
+      {Math.abs(pct).toFixed(0)}% {t("report.vsPreviousPeriod")}
     </span>
   );
 }
 
 export default function LaporanPendapatanClient() {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("30d");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -122,10 +126,10 @@ export default function LaporanPendapatanClient() {
     fetch(`/api/admin/reports/revenue?${params}`, { cache: "no-store" })
       .then(async (response) => {
         const json = (await response.json()) as ReportData & { error?: string };
-        if (!response.ok) throw new Error(json.error || "Laporan gagal dimuat.");
+        if (!response.ok) throw new Error(json.error || t("report.loadFailed"));
         setData(json);
       })
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Laporan gagal dimuat."))
+      .catch((error) => toast.error(error instanceof Error ? error.message : t("report.loadFailed")))
       .finally(() => setLoading(false));
   }, [range, page]);
 
@@ -152,24 +156,24 @@ export default function LaporanPendapatanClient() {
                   period === p.key ? "border-primary bg-accent" : "border-border hover:bg-accent/50",
                 )}
               >
-                {p.label}
+                {t(p.labelKey)}
               </button>
             ))}
           </div>
           {period === "custom" && (
             <div className="flex items-end gap-2">
               <div className="space-y-1.5">
-                <Label htmlFor="report-from">Dari</Label>
+                <Label htmlFor="report-from">{t("report.from")}</Label>
                 <Input id="report-from" type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="report-to">Sampai</Label>
+                <Label htmlFor="report-to">{t("report.to")}</Label>
                 <Input id="report-to" type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} />
               </div>
             </div>
           )}
           <Button type="button" variant="outline" className="ml-auto" disabled={!range} onClick={exportCsv}>
-            <Download className="size-4" /> Export CSV
+            <Download className="size-4" /> {t("report.exportCsv")}
           </Button>
         </CardContent>
       </Card>
@@ -177,31 +181,31 @@ export default function LaporanPendapatanClient() {
       {!range ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Pilih rentang tanggal custom (dari &amp; sampai) untuk melihat laporan.
+            {t("report.selectCustomRange")}
           </CardContent>
         </Card>
       ) : loading || !data ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">Memuat laporan…</p>
+        <p className="py-10 text-center text-sm text-muted-foreground">{t("report.loading")}</p>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Total pendapatan</p>
+                <p className="text-sm text-muted-foreground">{t("report.totalRevenue")}</p>
                 <p className="mt-1 text-2xl font-bold">{formatRupiah(data.summary.revenue)}</p>
                 <PercentBadge current={data.summary.revenue} previous={data.summary.previousRevenue} />
               </CardContent>
             </Card>
             <Card>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Jumlah pesanan</p>
+                <p className="text-sm text-muted-foreground">{t("report.orderCount")}</p>
                 <p className="mt-1 text-2xl font-bold">{data.summary.orderCount}</p>
                 <PercentBadge current={data.summary.orderCount} previous={data.summary.previousOrderCount} />
               </CardContent>
             </Card>
             <Card>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Rata-rata nilai pesanan</p>
+                <p className="text-sm text-muted-foreground">{t("report.averageOrderValue")}</p>
                 <p className="mt-1 text-2xl font-bold">{formatRupiah(data.summary.averageOrderValue)}</p>
               </CardContent>
             </Card>
@@ -210,7 +214,7 @@ export default function LaporanPendapatanClient() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Tren pendapatan harian</CardTitle>
+                <CardTitle>{t("report.dailyTrend")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <RevenueChart points={data.series} />
@@ -218,11 +222,11 @@ export default function LaporanPendapatanClient() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Per kategori</CardTitle>
+                <CardTitle>{t("report.byCategory")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {data.categories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Belum ada penjualan pada periode ini.</p>
+                  <p className="text-sm text-muted-foreground">{t("admin.dashboard.noSalesPeriod")}</p>
                 ) : (
                   <ol className="space-y-3">
                     {data.categories.map((category) => (
@@ -230,7 +234,7 @@ export default function LaporanPendapatanClient() {
                         <span className="truncate">{category.categoryName}</span>
                         <span className="shrink-0 text-right">
                           <span className="block font-medium">{formatRupiah(category.revenue)}</span>
-                          <span className="block text-xs text-muted-foreground">{category.quantity} terjual</span>
+                          <span className="block text-xs text-muted-foreground">{category.quantity} {t("admin.dashboard.sold")}</span>
                         </span>
                       </li>
                     ))}
@@ -242,20 +246,20 @@ export default function LaporanPendapatanClient() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Detail transaksi</CardTitle>
+              <CardTitle>{t("report.transactionDetail")}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.orders.orders.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">Belum ada transaksi pada periode ini.</p>
+                <p className="py-10 text-center text-sm text-muted-foreground">{t("report.noTransactionsPeriod")}</p>
               ) : (
                 <>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tanggal</TableHead>
-                        <TableHead>Pembeli</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Total</TableHead>
+                        <TableHead>{t("orders.table.date")}</TableHead>
+                        <TableHead>{t("orders.table.buyer")}</TableHead>
+                        <TableHead>{t("orders.table.status")}</TableHead>
+                        <TableHead>{t("common.total")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -269,7 +273,7 @@ export default function LaporanPendapatanClient() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={BADGE_VARIANT[order.status] ?? "outline"}>{STATUS_LABELS[order.status]}</Badge>
+                            <Badge variant={BADGE_VARIANT[order.status] ?? "outline"}>{t(STATUS_KEYS[order.status])}</Badge>
                           </TableCell>
                           <TableCell>{money.format(order.total)}</TableCell>
                         </TableRow>
@@ -278,14 +282,14 @@ export default function LaporanPendapatanClient() {
                   </Table>
                   <div className="mt-4 flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
-                      Halaman {data.orders.page} dari {totalPages} ({data.orders.total} transaksi)
+                      {t("report.pageOf", { page: data.orders.page, total: totalPages, count: data.orders.total })}
                     </p>
                     <div className="flex gap-2">
                       <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                        Sebelumnya
+                        {t("report.previous")}
                       </Button>
                       <Button type="button" variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                        Berikutnya
+                        {t("report.next")}
                       </Button>
                     </div>
                   </div>
