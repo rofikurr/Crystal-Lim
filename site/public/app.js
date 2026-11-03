@@ -1,13 +1,17 @@
 const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const cart = [];
+const cartKey = item => `${item.id}::${item.variantId ?? ''}`;
 // Persist product IDs only; never store addresses or payment data in the browser.
 try {
   const saved = JSON.parse(localStorage.getItem('crystal-lim-cart-v1') || '[]');
   if (Array.isArray(saved)) for (const row of saved.slice(0, 6)) {
     const product = window.crystalCatalog.find(p => p.id === row.id);
-    if (product && Number.isInteger(row.quantity) && row.quantity > 0 && row.quantity <= 10 && !cart.some(p => p.id === row.id)) {
-      for (let i = 0; i < row.quantity; i++) cart.push({ id: product.id, name: product.name, price: product.price, image: product.image });
+    const variant = row.variantId ? product?.variants?.find(v => v.id === row.variantId) : null;
+    if (product && (!row.variantId || variant) && Number.isInteger(row.quantity) && row.quantity > 0 && row.quantity <= 10 && !cart.some(p => cartKey(p) === cartKey(row))) {
+      const name = variant ? `${product.name} — ${variant.label}` : product.name;
+      const price = variant ? variant.price : product.price;
+      for (let i = 0; i < row.quantity; i++) cart.push({ id: product.id, variantId: variant?.id ?? null, name, price, image: product.image });
     }
   }
 } catch { /* Storage can be disabled in private/file previews. */ }
@@ -59,10 +63,11 @@ function renderCart() {
   window.dispatchEvent(new Event('cart:changed'));
   const grouped = Object.values(cart.reduce((result, item, index) => {
     const id = item.id || window.crystalCatalog.find(p => p.name === item.name)?.id;
-    if (!result[id]) result[id] = { ...item, id, index, quantity: 0 };
-    result[id].quantity++; return result;
+    const key = cartKey({ ...item, id });
+    if (!result[key]) result[key] = { ...item, id, index, quantity: 0 };
+    result[key].quantity++; return result;
   }, {}));
-  try { localStorage.setItem('crystal-lim-cart-v1', JSON.stringify(grouped.map(({id,quantity}) => ({id,quantity})))); } catch {}
+  try { localStorage.setItem('crystal-lim-cart-v1', JSON.stringify(grouped.map(({id,variantId,quantity}) => ({id,variantId:variantId??null,quantity})))); } catch {}
   const count = cart.length;
   const total = cartSubtotal();
   qs('.cart-count').textContent = count;
@@ -79,7 +84,7 @@ function renderCart() {
       <div class="cart-item">
         <img src="${escapeHtml(item.image)}" alt="">
         <div><b>${escapeHtml(item.name)}</b><small>${rupiah.format(item.price)} ${t('cart.perItem')}</small><div class="cart-quantity"><button data-cart-change="-1" data-index="${item.index}" aria-label="${t('cart.decrease', { name: item.name })}">−</button><span aria-label="Jumlah">${item.quantity}</span><button data-cart-change="1" data-index="${item.index}" aria-label="${t('cart.increase', { name: item.name })}" ${item.quantity >= 10 ? 'disabled' : ''}>+</button></div></div>
-        <button class="remove-item" data-id="${escapeHtml(item.id)}" aria-label="${t('cart.remove', { name: item.name })}">×</button>
+        <button class="remove-item" data-id="${escapeHtml(item.id)}" data-variant="${escapeHtml(item.variantId ?? '')}" aria-label="${t('cart.remove', { name: item.name })}">×</button>
       </div>`).join('');
     cartFooter.hidden = false;
     qs('.cart-total strong').textContent = rupiah.format(total);
@@ -141,12 +146,13 @@ cartItems.addEventListener('click', event => {
     const index = Number(change.dataset.index), item = cart[index];
     if (!item) return;
     if (change.dataset.cartChange === '-1') cart.splice(index, 1);
-    else if (cart.filter(p => p.id === item.id).length < 10) cart.push({...item});
+    else if (cart.filter(p => cartKey(p) === cartKey(item)).length < 10) cart.push({...item});
     renderCart(); qs('[data-cart-change]', cartItems)?.focus(); return;
   }
   const remove = event.target.closest('.remove-item');
   if (!remove) return;
-  for (let i = cart.length - 1; i >= 0; i--) if (cart[i].id === remove.dataset.id) cart.splice(i, 1);
+  const removeKey = `${remove.dataset.id}::${remove.dataset.variant ?? ''}`;
+  for (let i = cart.length - 1; i >= 0; i--) if (cartKey(cart[i]) === removeKey) cart.splice(i, 1);
   renderCart();
   (qs('.remove-item', cartItems) || qs('.drawer-close')).focus();
 });

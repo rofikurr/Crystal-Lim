@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 // "/", tapi patah di halaman manapun yang bukan root, mis. /admin/products).
 const validImage = (value: unknown): value is string => typeof value === "string" &&
   value.length <= 800 && (/^https:\/\//.test(value) || /^\/(assets|media)\/[a-zA-Z0-9._/-]+$/.test(value));
+const validVideo = (value: unknown): value is string => typeof value === "string" &&
+  value.length <= 800 && (/^https:\/\//.test(value) || /^\/(assets|media)\/[a-zA-Z0-9._/-]+$/.test(value));
 
 export async function GET() {
   const { response } = await requirePermissionOrResponse("products.manage");
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
   const { response } = await requirePermissionOrResponse("products.manage");
   if (response) return response;
   if (!sameOrigin(request)) return Response.json({ error: "Permintaan tidak valid." }, { status: 403 });
-  let body: Partial<Product> & { categoryIds?: unknown };
+  let body: Partial<Product> & { categoryIds?: unknown; variants?: unknown };
   try { body = await request.json(); } catch { return Response.json({ error: "Data tidak valid." }, { status: 400 }); }
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
@@ -41,11 +43,26 @@ export async function POST(request: Request) {
     return value !== undefined && (!Number.isSafeInteger(value) || value < 1 || value > 300);
   });
   const images = Array.isArray(body.images) ? body.images : [];
+  const videosInput = Array.isArray(body.videos) ? body.videos : [];
+  const videos = videosInput.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean);
   const categoryIdsInput = Array.isArray(body.categoryIds) ? body.categoryIds : [];
   const categoryIds: number[] = categoryIdsInput.every((id) => Number.isInteger(id))
     ? categoryIdsInput
     : [];
-  if (!name || name.length > 140 || description.length > 3000 ||
+  const variantsInput = Array.isArray(body.variants) ? body.variants : [];
+  const variants = variantsInput.map((v) => {
+    const raw = (v ?? {}) as Record<string, unknown>;
+    return {
+      label: typeof raw.label === "string" ? raw.label.trim() : "",
+      price: Number(raw.price),
+      stock: Number(raw.stock),
+    };
+  });
+  const variantsInvalid = variants.length > 30 || variants.some((v) =>
+    !v.label || v.label.length > 140 ||
+    !Number.isSafeInteger(v.price) || v.price < 0 || v.price > 1000000000 ||
+    !Number.isSafeInteger(v.stock) || v.stock < 0 || v.stock > 1000000);
+  if (!name || name.length > 140 || description.length > 20000 ||
     !Number.isSafeInteger(price) || price < 0 || price > 1000000000 ||
     (stock !== undefined && (!Number.isSafeInteger(stock) || stock < 0 || stock > 1000000)) ||
     (netWeight !== undefined && (!Number.isSafeInteger(netWeight) || netWeight < 1 || netWeight > 50000)) ||
@@ -55,8 +72,10 @@ export async function POST(request: Request) {
     categoryIds.length !== categoryIdsInput.length ||
     !validImage(body.image) ||
     images.length > 12 || images.some(image => !validImage(image)) ||
+    videos.length > 5 || videos.some(v => !validVideo(v)) ||
+    variantsInvalid ||
     (body.url && (typeof body.url !== "string" || !/^https:\/\//.test(body.url) || body.url.length > 800))) {
-    return Response.json({ error: "Periksa nama, harga, stok, berat, dimensi, kategori, foto, dan deskripsi produk." }, { status: 400 });
+    return Response.json({ error: "Periksa nama, harga, stok, berat, dimensi, kategori, foto, varian, dan deskripsi produk." }, { status: 400 });
   }
   try {
     const validCategoryIds = new Set((await listCategories()).map((c) => c.id));
@@ -80,11 +99,13 @@ export async function POST(request: Request) {
       packedWidth: dimensions.packedWidth ?? old?.packedWidth ?? 10,
       packedHeight: dimensions.packedHeight ?? old?.packedHeight ?? 8,
       image: body.image!, images: [...new Set([body.image!, ...images])],
+      videos,
       url: body.url || "", published: body.published !== false,
       position: Number.isInteger(body.position) && body.position! >= 0 && body.position! <= 10000
         ? body.position! : existing.length,
       createdAt: old?.createdAt || now, updatedAt: now,
       categoryIds,
+      variants: variants.map((v, i) => ({ ...v, position: i })),
     });
     const [product] = (await listProducts(true)).filter((p) => p.id === id);
     return Response.json({ product }, { status: old ? 200 : 201 });

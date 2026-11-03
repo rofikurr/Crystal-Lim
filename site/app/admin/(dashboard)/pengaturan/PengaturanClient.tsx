@@ -33,6 +33,9 @@ export default function PengaturanClient() {
   const [originResults, setOriginResults] = useState<DestinationOption[]>([]);
   const [searchingOrigin, setSearchingOrigin] = useState(false);
   const [savingOrigin, setSavingOrigin] = useState(false);
+  const [internationalStandardFee, setInternationalStandardFee] = useState(0);
+  const [internationalExpressFee, setInternationalExpressFee] = useState(0);
+  const [savingInternationalFees, setSavingInternationalFees] = useState(false);
 
   async function refresh() {
     const response = await fetch("/api/admin/settings", { cache: "no-store" });
@@ -41,11 +44,15 @@ export default function PengaturanClient() {
       shippingFlatFee: number;
       shippingMode: ShippingMode;
       shippingOrigin: { id: number; label: string } | null;
+      internationalStandardFee: number;
+      internationalExpressFee: number;
     };
     if (!response.ok) throw new Error(data.error || t("settings.loadFailed"));
     setShippingFee(data.shippingFlatFee);
     setShippingMode(data.shippingMode);
     setShippingOrigin(data.shippingOrigin);
+    setInternationalStandardFee(data.internationalStandardFee);
+    setInternationalExpressFee(data.internationalExpressFee);
   }
 
   useEffect(() => {
@@ -90,6 +97,28 @@ export default function PengaturanClient() {
       toast.error(error instanceof Error ? error.message : t("settings.feeSaveFailed"));
     } finally {
       setSavingFee(false);
+    }
+  }
+
+  async function saveInternationalFees(event: React.FormEvent) {
+    event.preventDefault();
+    setSavingInternationalFees(true);
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          internationalStandardFee,
+          internationalExpressFee,
+        }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || t("settings.internationalFeeSaveFailed"));
+      toast.success(t("settings.internationalFeeSaved"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("settings.internationalFeeSaveFailed"));
+    } finally {
+      setSavingInternationalFees(false);
     }
   }
 
@@ -202,6 +231,44 @@ export default function PengaturanClient() {
             </div>
             <Button type="submit" disabled={savingFee}>
               {savingFee ? t("common.saving") : t("settings.saveShipping")}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.internationalTitle")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t("settings.internationalHint")}</p>
+          <form onSubmit={saveInternationalFees} className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
+            <div className="space-y-1.5">
+              <Label htmlFor="intl-standard-fee">{t("settings.internationalStandardLabel")}</Label>
+              <Input
+                id="intl-standard-fee"
+                type="number"
+                min={0}
+                max={20000000}
+                className="sm:w-56"
+                value={internationalStandardFee}
+                onChange={(e) => setInternationalStandardFee(Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="intl-express-fee">{t("settings.internationalExpressLabel")}</Label>
+              <Input
+                id="intl-express-fee"
+                type="number"
+                min={0}
+                max={20000000}
+                className="sm:w-56"
+                value={internationalExpressFee}
+                onChange={(e) => setInternationalExpressFee(Number(e.target.value))}
+              />
+            </div>
+            <Button type="submit" disabled={savingInternationalFees}>
+              {savingInternationalFees ? t("common.saving") : t("settings.saveShipping")}
             </Button>
           </form>
         </CardContent>

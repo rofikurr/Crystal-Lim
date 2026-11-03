@@ -2,6 +2,7 @@ import { formatRupiah } from "../../../../lib/format";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 
 export type OrderStatus = "pending" | "paid" | "shipped" | "completed" | "cancelled" | "expired";
+export type ShippingMethod = "domestic" | "intl_standard" | "intl_express";
 
 export type OrderItem = {
   productId: string;
@@ -9,6 +10,8 @@ export type OrderItem = {
   productImage: string;
   unitPrice: number;
   quantity: number;
+  variantId: number | null;
+  variantLabel: string;
 };
 
 export type Order = {
@@ -25,6 +28,7 @@ export type Order = {
   xenditInvoiceId: string;
   xenditInvoiceUrl: string;
   trackingNumber: string;
+  shippingMethod: ShippingMethod;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
@@ -37,6 +41,12 @@ export const STATUS_KEYS: Record<OrderStatus, TranslationKey> = {
   completed: "orderStatus.completed",
   cancelled: "orderStatus.cancelled",
   expired: "orderStatus.expired",
+};
+
+export const SHIPPING_METHOD_KEYS: Record<ShippingMethod, TranslationKey> = {
+  domestic: "orders.shippingMethod.domestic",
+  intl_standard: "orders.shippingMethod.intlStandard",
+  intl_express: "orders.shippingMethod.intlExpress",
 };
 
 export const money = { format: formatRupiah };

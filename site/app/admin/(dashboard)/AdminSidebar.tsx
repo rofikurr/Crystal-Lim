@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ChevronDown, LayoutDashboard, Megaphone, Package, Settings, ShieldCheck, ShoppingBag, Users } from "lucide-react";
+import { ChevronDown, LayoutDashboard, Megaphone, Package, Settings, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n/context";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -20,7 +20,6 @@ const ITEMS = [
     ],
   },
   { href: "/admin/orders", labelKey: "admin.sidebar.orders" as TranslationKey, permission: "orders.manage", icon: ShoppingBag },
-  { href: "/admin/laporan-pendapatan", labelKey: "admin.sidebar.revenueReport" as TranslationKey, permission: "orders.manage", icon: BarChart3 },
   { href: "/admin/pengaturan", labelKey: "admin.sidebar.settings" as TranslationKey, permission: "orders.manage", icon: Settings },
   { href: "/admin/broadcast", labelKey: "admin.sidebar.broadcast" as TranslationKey, permission: "broadcast.manage", icon: Megaphone },
   { href: "/admin/users", labelKey: "admin.sidebar.userManagement" as TranslationKey, permission: "users.manage", icon: Users },

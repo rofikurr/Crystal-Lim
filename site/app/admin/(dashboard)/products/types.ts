@@ -6,6 +6,8 @@ export type Category = CategoryRef & { isSystem: boolean; position: number };
 
 export const BEST_SELLER_SLUG = "best-seller";
 
+export type ProductVariant = { id?: number; label: string; price: number; stock: number };
+
 export type Product = {
   id: string;
   name: string;
@@ -23,6 +25,8 @@ export type Product = {
   categories: CategoryRef[];
   image: string;
   images: string[];
+  videos: string[];
+  variants: ProductVariant[];
   url: string;
   published: boolean;
   position: number;
@@ -47,6 +51,8 @@ export const EMPTY_PRODUCT: Product = {
   categories: [],
   image: "",
   images: [],
+  videos: [],
+  variants: [],
   url: "",
   published: true,
   position: 0,

@@ -88,6 +88,18 @@ export async function getShippingOptions(input: {
  * RajaOngkir error/kuota habis, jatuh balik diam-diam ke `shipping_flat_fee`
  * — checkout tidak boleh gagal gara-gara ini.
  */
+export type InternationalShippingMethod = "intl_standard" | "intl_express";
+
+/**
+ * Ongkir internasional TIDAK dihitung live (beda dari RajaOngkir) — nominalnya
+ * diisi manual oleh admin di Pengaturan, karena paket harus lewat warehouse
+ * Jakarta dulu sebelum diteruskan ke kurir internasional (DHL/FedEx/EMS).
+ */
+export async function getInternationalShippingFee(method: InternationalShippingMethod): Promise<number> {
+  const key = method === "intl_express" ? "international_express_fee" : "international_standard_fee";
+  return getNumericSetting(key, 0);
+}
+
 export async function computeShippingFee(input: {
   postal: string;
   items: { productId: string; quantity: number }[];

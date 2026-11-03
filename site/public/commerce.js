@@ -5,11 +5,46 @@
   const detail = document.createElement('section');
   detail.className = 'product-detail'; detail.hidden = true;
   qs('main').after(detail);
-  let activeProduct, activeImage = 0, opener, previousScroll = 0;
-  function showImage(index) {
-    activeImage = (index + activeProduct.images.length) % activeProduct.images.length;
-    qs('.detail-main-image', detail).src = activeProduct.images[activeImage];
-    qs('.detail-image-count', detail).textContent = `${activeImage + 1} / ${activeProduct.images.length}`;
+  let activeProduct, activeImage = 0, opener, previousScroll = 0, selectedVariantId = null;
+  function currentVariant() {
+    return activeProduct.variants?.find(v => v.id === selectedVariantId) ?? null;
+  }
+  function variantState() {
+    const variant = currentVariant();
+    const price = variant ? variant.price : activeProduct.price;
+    const stock = variant ? variant.stock : (Number.isFinite(activeProduct.stock) ? activeProduct.stock : 10);
+    const outOfStock = stock <= 0;
+    const maxQty = Math.max(1, Math.min(10, stock));
+    const stockNote = outOfStock ? t('detail.outOfStockNote') : (stock <= 5 ? t('detail.lowStockNote', { stock }) : '');
+    return { price, stock, outOfStock, maxQty, stockNote };
+  }
+  function youtubeEmbedUrl(url) {
+    const match = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([a-zA-Z0-9_-]{6,})/.exec(url || '');
+    return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+  }
+  function mediaList() {
+    const videos = (activeProduct.videos || []).map(src => ({ type: 'video', src }));
+    const images = activeProduct.images.map(src => ({ type: 'image', src }));
+    return [...videos, ...images];
+  }
+  function showMedia(index) {
+    const media = mediaList();
+    activeImage = (index + media.length) % media.length;
+    const item = media[activeImage];
+    const img = qs('.detail-main-image', detail), video = qs('.detail-main-video', detail), yt = qs('.detail-main-youtube', detail);
+    const embedUrl = item.type === 'video' ? youtubeEmbedUrl(item.src) : null;
+    if (item.type === 'video' && embedUrl) {
+      yt.src = embedUrl; yt.hidden = false; img.hidden = true;
+      video.pause(); video.removeAttribute('src'); video.load(); video.hidden = true;
+    } else if (item.type === 'video') {
+      video.src = item.src; video.hidden = false; img.hidden = true;
+      yt.src = ''; yt.hidden = true;
+    } else {
+      video.pause(); video.removeAttribute('src'); video.load(); video.hidden = true;
+      yt.src = ''; yt.hidden = true;
+      img.src = item.src; img.hidden = false;
+    }
+    qs('.detail-image-count', detail).textContent = `${activeImage + 1} / ${media.length}`;
     qsa('.detail-thumb', detail).forEach((button,i) => button.setAttribute('aria-pressed', String(i === activeImage)));
   }
   function closeDetail() {
@@ -26,41 +61,62 @@
   });
   function openDetail(product, source) {
     opener = source; previousScroll = window.scrollY; activeProduct = product;
-    const stock = Number.isFinite(product.stock) ? product.stock : 10;
-    const outOfStock = stock <= 0;
-    const maxQty = Math.max(1, Math.min(10, stock));
-    const stockNote = outOfStock ? t('detail.outOfStockNote') : (stock <= 5 ? t('detail.lowStockNote', { stock }) : '');
+    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+    selectedVariantId = hasVariants ? product.variants[0].id : null;
+    const state = variantState();
+    const media = mediaList();
     detail.innerHTML = `<button class="detail-back" type="button">${t('detail.back')}</button>
       <div class="detail-layout"><div class="detail-gallery">
-        <div class="detail-image-wrap"><img class="detail-main-image" src="${esc(product.image)}" alt="${esc(product.name)}"><span class="detail-image-count"></span></div>
+        <div class="detail-image-wrap"><img class="detail-main-image" src="${esc(product.image)}" alt="${esc(product.name)}"><video class="detail-main-video" controls playsinline preload="metadata" hidden></video><iframe class="detail-main-youtube" title="${esc(product.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen hidden></iframe><span class="detail-image-count"></span></div>
         <div class="detail-gallery-nav"><button class="image-prev" aria-label="${t('detail.prevPhoto')}">←</button><span>${t('detail.originalPhotos')}</span><button class="image-next" aria-label="${t('detail.nextPhoto')}">→</button></div>
-        <div class="detail-thumbnails">${product.images.map((src,i)=>`<button class="detail-thumb" data-index="${i}" aria-label="${t('detail.viewPhoto', { index: i + 1 })}" aria-pressed="false"><img src="${esc(src)}" alt="" loading="lazy"></button>`).join('')}</div>
-      </div><div class="detail-copy"><p class="eyebrow">${t('detail.eyebrow')}</p><h1>${esc(product.name)}</h1><strong class="detail-price">${rupiah.format(product.price)}</strong>
-      <p class="detail-description">${esc(product.description)}</p>${stockNote ? `<p class="detail-stock-note">${esc(stockNote)}</p>` : ''}
-      <label class="detail-quantity"${outOfStock ? ' hidden' : ''}>${t('detail.quantity')} <input type="number" min="1" max="${maxQty}" step="1" value="1" inputmode="numeric" required${outOfStock ? ' disabled' : ''}></label>
-      <button class="detail-buy" type="button"${outOfStock ? ' disabled' : ''}>${outOfStock ? t('detail.outOfStockButton') : `${t('detail.continueToAddress')}`}</button>
-      <button class="detail-add" type="button"${outOfStock ? ' disabled' : ''}>${t('detail.addToCart')}</button><p class="detail-feedback" role="status"></p>
+        <div class="detail-thumbnails">${media.map((m,i)=>`<button class="detail-thumb${m.type==='video' ? ' detail-thumb-video' : ''}" data-index="${i}" aria-label="${m.type==='video' ? t('detail.viewVideo') : t('detail.viewPhoto', { index: i + 1 })}" aria-pressed="false"><img src="${esc(m.type==='video' ? product.image : m.src)}" alt="" loading="lazy">${m.type==='video' ? '<span class="thumb-play" aria-hidden="true">▶</span>' : ''}</button>`).join('')}</div>
+      </div><div class="detail-copy"><p class="eyebrow">${t('detail.eyebrow')}</p><h1>${esc(product.name)}</h1><strong class="detail-price">${rupiah.format(state.price)}</strong>
+      <p class="detail-description">${esc(product.description)}</p><p class="detail-stock-note"${state.stockNote ? '' : ' hidden'}>${esc(state.stockNote)}</p>
+      ${hasVariants ? `<label class="detail-variant">${t('detail.chooseVariant')} <select class="detail-variant-select">${product.variants.map(v=>`<option value="${v.id}">${esc(v.label)}</option>`).join('')}</select></label>` : ''}
+      <label class="detail-quantity"${state.outOfStock ? ' hidden' : ''}>${t('detail.quantity')} <input type="number" min="1" max="${state.maxQty}" step="1" value="1" inputmode="numeric" required${state.outOfStock ? ' disabled' : ''}></label>
+      <button class="detail-buy" type="button"${state.outOfStock ? ' disabled' : ''}>${state.outOfStock ? t('detail.outOfStockButton') : `${t('detail.continueToAddress')}`}</button>
+      <button class="detail-add" type="button"${state.outOfStock ? ' disabled' : ''}>${t('detail.addToCart')}</button><p class="detail-feedback" role="status"></p>
       <div class="detail-facts"><p><b>${t('detail.shippingLabel')}</b><span>${t('detail.shippingValue')}</span></p><p><b>${t('detail.paymentLabel')}</b><span>${t('detail.paymentValue')}</span></p></div>
       <a class="detail-source" href="${esc(product.url)}" target="_blank" rel="noopener">${t('detail.viewSource')}</a></div></div>`;
     qs('main').hidden = true; detail.hidden = false; window.scrollTo(0,0);
     qs('.detail-back',detail).addEventListener('click',closeDetail);
-    qs('.image-prev',detail).addEventListener('click',()=>showImage(activeImage-1));
-    qs('.image-next',detail).addEventListener('click',()=>showImage(activeImage+1));
-    qsa('.detail-thumb',detail).forEach(b=>b.addEventListener('click',()=>showImage(Number(b.dataset.index))));
+    qs('.image-prev',detail).addEventListener('click',()=>showMedia(activeImage-1));
+    qs('.image-next',detail).addEventListener('click',()=>showMedia(activeImage+1));
+    qsa('.detail-thumb',detail).forEach(b=>b.addEventListener('click',()=>showMedia(Number(b.dataset.index))));
+    function refreshForVariant() {
+      const next = variantState();
+      qs('.detail-price',detail).textContent = rupiah.format(next.price);
+      const note = qs('.detail-stock-note',detail);
+      note.textContent = next.stockNote; note.hidden = !next.stockNote;
+      const qtyLabel = qs('.detail-quantity',detail), qtyInput = qs('.detail-quantity input',detail);
+      qtyLabel.hidden = next.outOfStock;
+      qtyInput.max = next.maxQty; qtyInput.disabled = next.outOfStock;
+      if (Number(qtyInput.value) > next.maxQty) qtyInput.value = next.maxQty;
+      const buy = qs('.detail-buy',detail), addBtn = qs('.detail-add',detail);
+      buy.disabled = next.outOfStock; addBtn.disabled = next.outOfStock;
+      buy.textContent = next.outOfStock ? t('detail.outOfStockButton') : t('detail.continueToAddress');
+      qs('.detail-feedback',detail).textContent = '';
+    }
+    qs('.detail-variant-select',detail)?.addEventListener('change', event => {
+      selectedVariantId = Number(event.target.value); refreshForVariant();
+    });
     const add = (ensureQuantity = false) => {
-      if(outOfStock) return false;
+      const state = variantState();
+      if(state.outOfStock) return false;
       const input=qs('.detail-quantity input',detail);
       if(!input.reportValidity()) return false;
-      const existing=cart.filter(p=>p.id===product.id).length;
+      const variant = currentVariant();
+      const existing=cart.filter(p=>p.id===product.id && (p.variantId??null)===(variant?.id??null)).length;
       const count=ensureQuantity ? Math.max(0,Number(input.value)-existing) : Number(input.value);
-      if(existing+count>maxQty){qs('.detail-feedback',detail).textContent=t('detail.maxQuantity', { max: maxQty });return false;}
-      for(let i=0;i<count;i++) cart.push({id:product.id,name:product.name,price:product.price,image:product.image});
+      if(existing+count>state.maxQty){qs('.detail-feedback',detail).textContent=t('detail.maxQuantity', { max: state.maxQty });return false;}
+      const name = variant ? `${product.name} — ${variant.label}` : product.name;
+      for(let i=0;i<count;i++) cart.push({id:product.id,variantId:variant?.id??null,name,price:state.price,image:product.image});
       renderCart(); return true;
     };
     qs('.detail-add',detail).addEventListener('click',()=>{if(add()) qs('.detail-feedback',detail).textContent=t('detail.addedToCart');});
     qs('.detail-buy',detail).addEventListener('click',()=>{if(add(true)) openCheckout();});
     qs('.detail-main-image',detail).addEventListener('error',event=>{ if(event.target.getAttribute('src')!==product.image) { event.target.src=product.image; qs('.detail-image-count',detail).textContent=t('detail.photoNotLoaded'); } });
-    showImage(0); qs('.detail-back',detail).focus();
+    showMedia(0); qs('.detail-back',detail).focus();
   }
   qsa('.product').forEach(card=>{
     const product=products.find(p=>p.id===card.dataset.id);
@@ -84,25 +140,70 @@
   const form=qs('.checkout-form'), payStatus=qs('#payment-status'), payButton=qs('.place-order');
   const quoteButton=qs('#quote-shipping'), shippingStatus=qs('#shipping-status'), shippingOptionsEl=qs('#shipping-options');
   const shippingMode=window.crystalShipping?.mode==='flat' ? 'flat' : 'auto';
-  let paying=false, paymentController=null, quoting=false, selectedShipping=null;
-  const items=()=>Object.values(cart.reduce((all,p)=>{const id=p.id||products.find(x=>x.name===p.name)?.id;if(!all[id])all[id]={id,quantity:0};all[id].quantity++;return all;},{}));
-  if(shippingMode==='flat'){
-    qs('#shipping-flat-note').hidden=false;
-    qs('#shipping-fee-display').textContent=rupiah.format(window.crystalShipping?.flatFee||0);
-  }else{
-    qs('#shipping-auto-section').hidden=false;
+  let paying=false, paymentController=null, quoting=false, selectedShipping=null, selectedInternational=null;
+  const items=()=>Object.values(cart.reduce((all,p)=>{const id=p.id||products.find(x=>x.name===p.name)?.id;const variantId=p.variantId??null;const key=`${id}::${variantId??''}`;if(!all[key])all[key]={id,variantId,quantity:0};all[key].quantity++;return all;},{}));
+
+  // --- Negara & pengiriman internasional ---
+  const COUNTRIES=['Indonesia','Australia','Austria','Belgium','Brazil','Brunei','Canada','China','Czech Republic','Denmark','Egypt','Finland','France','Germany','Hong Kong','India','Ireland','Italy','Japan','Jordan','Kuwait','Malaysia','Mexico','Netherlands','New Zealand','Norway','Oman','Philippines','Poland','Portugal','Qatar','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Taiwan','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam'];
+  const countrySelect=qs('#checkout-country');
+  const domesticOnlyFields=qs('#domestic-only-fields');
+  const shippingFlatNoteEl=qs('#shipping-flat-note');
+  const shippingAutoSectionEl=qs('#shipping-auto-section');
+  const shippingIntlSectionEl=qs('#shipping-international-section');
+  const intlOptionsEl=qs('#shipping-international-options');
+  const postalInput=form.elements.postal;
+  if(countrySelect){
+    countrySelect.innerHTML=COUNTRIES.map(name=>`<option value="${esc(name)}"${name==='Indonesia'?' selected':''}>${esc(name)}</option>`).join('');
   }
+  function isInternational(){ return countrySelect && countrySelect.value!=='Indonesia'; }
+  function renderInternationalOptions(){
+    const standardFee=window.crystalShipping?.internationalStandardFee||0;
+    const expressFee=window.crystalShipping?.internationalExpressFee||0;
+    const options=[
+      {method:'intl_standard',labelKey:'checkout.internationalStandard',cost:standardFee},
+      {method:'intl_express',labelKey:'checkout.internationalExpress',cost:expressFee},
+    ];
+    intlOptionsEl.innerHTML=options.map((o,i)=>`<label class="shipping-option">
+      <input type="radio" name="international-shipping-option" value="${o.method}"${i===0?' checked':''}>
+      <span><b>${t(o.labelKey)}</b></span>
+      <strong>${rupiah.format(o.cost)}</strong>
+    </label>`).join('');
+    qsa('input[name="international-shipping-option"]',intlOptionsEl).forEach((input,i)=>input.addEventListener('change',()=>{selectedInternational=options[i];updateShippingTotal();}));
+    selectedInternational=options[0];
+  }
+  function applyDestinationMode(){
+    const intl=isInternational();
+    domesticOnlyFields.hidden=intl;
+    qsa('input',domesticOnlyFields).forEach(el=>{ el.required=!intl; });
+    if(intl){
+      postalInput.removeAttribute('pattern'); postalInput.removeAttribute('inputmode');
+      shippingFlatNoteEl.hidden=true; shippingAutoSectionEl.hidden=true;
+      shippingIntlSectionEl.hidden=false;
+      selectedShipping=null; shippingOptionsEl.innerHTML=''; shippingStatus.textContent='';
+      renderInternationalOptions();
+    }else{
+      postalInput.setAttribute('pattern','[0-9]{5}'); postalInput.setAttribute('inputmode','numeric');
+      shippingIntlSectionEl.hidden=true;
+      selectedInternational=null;
+      if(shippingMode==='flat'){ shippingFlatNoteEl.hidden=false; } else { shippingAutoSectionEl.hidden=false; }
+    }
+    updateShippingTotal();
+  }
+  countrySelect?.addEventListener('change',applyDestinationMode);
+
   function updateShippingTotal() {
-    const fee=shippingMode==='auto' ? (selectedShipping?.cost ?? (window.crystalShipping?.flatFee||0)) : (window.crystalShipping?.flatFee||0);
+    const fee=isInternational()
+      ? (selectedInternational?.cost||0)
+      : (shippingMode==='auto' ? (selectedShipping?.cost ?? (window.crystalShipping?.flatFee||0)) : (window.crystalShipping?.flatFee||0));
     qs('#shipping-total').textContent=rupiah.format(fee);
     qs('.summary-total').textContent=rupiah.format(cartSubtotal()+fee);
   }
+  applyDestinationMode();
   window.addEventListener('cart:changed',()=>{
     if(selectedShipping){selectedShipping=null;shippingOptionsEl.innerHTML='';shippingStatus.textContent=t('checkout.cartChanged');}
     updateShippingTotal();
   });
   window.addEventListener('checkout:closed',()=>{paymentController?.abort();});
-  updateShippingTotal();
   async function api(path,body,signal) {
     const response=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal});
     const data=await response.json().catch(()=>({}));
@@ -142,7 +243,8 @@
     event.preventDefault();if(paying||!form.reportValidity()||!cart.length)return;
     paying=true;payButton.disabled=true;payStatus.textContent=t('checkout.preparingPayment');
     const customer=Object.fromEntries(new FormData(form));
-    if(selectedShipping){customer.shippingCourier=selectedShipping.courier;customer.shippingService=selectedShipping.service;}
+    if(isInternational()){ if(selectedInternational) customer.shippingMethod=selectedInternational.method; }
+    else if(selectedShipping){customer.shippingCourier=selectedShipping.courier;customer.shippingService=selectedShipping.service;}
     qsa('input,textarea,button',form).forEach(el=>el.disabled=true);
     paymentController=new AbortController();const timeout=setTimeout(()=>paymentController.abort(),25000);
     try{

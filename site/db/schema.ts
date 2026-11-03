@@ -36,11 +36,23 @@ export const products = mysqlTable("products", {
   packedHeight: int("packed_height").notNull().default(8),
   image: varchar("image", { length: 800 }).notNull(),
   images: json("images").$type<string[]>().notNull().default([]),
+  videos: json("videos").$type<string[]>().notNull().default([]),
   sourceUrl: varchar("source_url", { length: 800 }).notNull().default(""),
   published: boolean("published").notNull().default(true),
   position: int("position").notNull().default(0),
   createdAt: datetime("created_at", { mode: "string" }).notNull(),
   updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
+});
+
+export const productVariants = mysqlTable("product_variants", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: varchar("product_id", { length: 64 })
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  label: varchar("label", { length: 140 }).notNull(),
+  price: int("price").notNull(),
+  stock: int("stock").notNull().default(0),
+  position: int("position").notNull().default(0),
 });
 
 export const catalogMeta = mysqlTable("catalog_meta", {
@@ -144,6 +156,12 @@ export const orders = mysqlTable(
     // Diisi manual oleh admin setelah serah terima paket ke kurir — tidak ada
     // resi otomatis (akun RajaOngkir Starter tidak kasih fitur buat resi).
     trackingNumber: varchar("tracking_number", { length: 80 }).notNull().default(""),
+    // "domestic" = RajaOngkir/flat biasa. "intl_standard"/"intl_express" = ongkir
+    // internasional, nominalnya diisi manual admin di Pengaturan (bukan dihitung
+    // live) karena harus lewat warehouse Jakarta dulu sebelum diteruskan ke LN.
+    shippingMethod: mysqlEnum("shipping_method", ["domestic", "intl_standard", "intl_express"])
+      .notNull()
+      .default("domestic"),
     createdAt: datetime("created_at", { mode: "string" }).notNull(),
     updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
   },
@@ -160,6 +178,11 @@ export const orderItems = mysqlTable("order_items", {
   productImage: varchar("product_image", { length: 800 }).notNull(),
   unitPrice: int("unit_price").notNull(),
   quantity: int("quantity").notNull(),
+  // Nullable: null kalau produk tidak punya varian. `onDelete: set null` +
+  // variantLabel didenormalisasi di bawah supaya riwayat pesanan tetap
+  // menampilkan nama varian yang dibeli walau variannya sudah dihapus admin.
+  variantId: int("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+  variantLabel: varchar("variant_label", { length: 140 }).notNull().default(""),
 });
 
 export const settings = mysqlTable("settings", {

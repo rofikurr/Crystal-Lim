@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { money, STATUS_KEYS, type Order, type OrderStatus } from "./types";
+import { money, SHIPPING_METHOD_KEYS, STATUS_KEYS, type Order, type OrderStatus } from "./types";
 import { useTranslation } from "@/lib/i18n/context";
 
 const BADGE_VARIANT: Partial<Record<OrderStatus, "secondary" | "outline" | "destructive">> = {
@@ -48,6 +48,7 @@ export default function OrdersTable({
           <TableHead>{t("orders.table.buyer")}</TableHead>
           <TableHead>{t("common.total")}</TableHead>
           <TableHead>{t("orders.table.status")}</TableHead>
+          <TableHead>{t("orders.table.shipping")}</TableHead>
           <TableHead>{t("orders.table.date")}</TableHead>
           <TableHead className="text-right">{t("orders.table.action")}</TableHead>
         </TableRow>
@@ -66,6 +67,11 @@ export default function OrdersTable({
               <Badge variant={BADGE_VARIANT[order.status] ?? "outline"}>
                 {t(STATUS_KEYS[order.status])}
               </Badge>
+            </TableCell>
+            <TableCell>
+              {order.shippingMethod !== "domestic" && (
+                <Badge variant="outline">{t(SHIPPING_METHOD_KEYS[order.shippingMethod])}</Badge>
+              )}
             </TableCell>
             <TableCell className="text-muted-foreground">{order.createdAt}</TableCell>
             <TableCell className="text-right">

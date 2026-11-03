@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
-import { catalogMeta, categories, productCategories, products } from "./schema";
+import { catalogMeta, categories, productCategories, productVariants, products } from "./schema";
 import seedCatalog from "./seed-products.js";
 import { nowForDb } from "../lib/db-time";
 
@@ -82,6 +82,8 @@ export async function deleteCategory(id: number) {
   await db.delete(categories).where(eq(categories.id, id));
 }
 
+export type ProductVariant = { id: number; label: string; price: number; stock: number; position: number };
+
 export type Product = {
   id: string;
   name: string;
@@ -99,6 +101,8 @@ export type Product = {
   categories: CategoryRef[];
   image: string;
   images: string[];
+  videos: string[];
+  variants: ProductVariant[];
   url: string;
   published: boolean;
   position: number;
@@ -187,7 +191,27 @@ async function categoriesByProductIds(productIds: string[]): Promise<Map<string,
   return map;
 }
 
-function toProduct(row: ProductRow, categoryMap: Map<string, CategoryRef[]>): Product {
+async function variantsByProductIds(productIds: string[]): Promise<Map<string, ProductVariant[]>> {
+  if (productIds.length === 0) return new Map();
+  const rows = await db
+    .select()
+    .from(productVariants)
+    .where(inArray(productVariants.productId, productIds))
+    .orderBy(asc(productVariants.position), asc(productVariants.id));
+  const map = new Map<string, ProductVariant[]>();
+  for (const row of rows) {
+    const list = map.get(row.productId) ?? [];
+    list.push({ id: row.id, label: row.label, price: row.price, stock: row.stock, position: row.position });
+    map.set(row.productId, list);
+  }
+  return map;
+}
+
+function toProduct(
+  row: ProductRow,
+  categoryMap: Map<string, CategoryRef[]>,
+  variantMap: Map<string, ProductVariant[]>,
+): Product {
   return {
     id: row.id,
     name: row.name,
@@ -205,6 +229,8 @@ function toProduct(row: ProductRow, categoryMap: Map<string, CategoryRef[]>): Pr
     categories: categoryMap.get(row.id) ?? [],
     image: row.image,
     images: Array.isArray(row.images) ? row.images : [],
+    videos: Array.isArray(row.videos) ? row.videos : [],
+    variants: variantMap.get(row.id) ?? [],
     url: row.sourceUrl,
     published: row.published,
     position: row.position,
@@ -226,11 +252,15 @@ export async function listProducts(includeHidden = false): Promise<Product[]> {
         .where(eq(products.published, true))
         .orderBy(asc(products.position), asc(products.createdAt));
   const categoryMap = await categoriesByProductIds(rows.map((r) => r.id));
-  return rows.map((row) => toProduct(row, categoryMap));
+  const variantMap = await variantsByProductIds(rows.map((r) => r.id));
+  return rows.map((row) => toProduct(row, categoryMap, variantMap));
 }
 
 export async function saveProduct(
-  product: Omit<Product, "categories"> & { categoryIds: number[] },
+  product: Omit<Product, "categories" | "variants"> & {
+    categoryIds: number[];
+    variants: Omit<ProductVariant, "id">[];
+  },
 ) {
   await db.transaction(async (tx) => {
     await tx
@@ -251,6 +281,7 @@ export async function saveProduct(
         packedHeight: product.packedHeight,
         image: product.image,
         images: product.images,
+        videos: product.videos,
         sourceUrl: product.url,
         published: product.published,
         position: product.position,
@@ -273,6 +304,7 @@ export async function saveProduct(
           packedHeight: product.packedHeight,
           image: product.image,
           images: product.images,
+          videos: product.videos,
           sourceUrl: product.url,
           published: product.published,
           position: product.position,
@@ -284,6 +316,18 @@ export async function saveProduct(
       await tx
         .insert(productCategories)
         .values(product.categoryIds.map((categoryId) => ({ productId: product.id, categoryId })));
+    }
+    await tx.delete(productVariants).where(eq(productVariants.productId, product.id));
+    if (product.variants.length > 0) {
+      await tx.insert(productVariants).values(
+        product.variants.map((variant, i) => ({
+          productId: product.id,
+          label: variant.label,
+          price: variant.price,
+          stock: variant.stock,
+          position: i,
+        })),
+      );
     }
   });
 }
@@ -312,4 +356,21 @@ export async function restoreStock(tx: Tx, productId: string, quantity: number):
     .update(products)
     .set({ stock: sql`${products.stock} + ${quantity}` })
     .where(eq(products.id, productId));
+}
+
+/** Versi varian dari {@link decrementStock} — stok dikurangi di baris varian, bukan produk induk. */
+export async function decrementVariantStock(tx: Tx, variantId: number, quantity: number): Promise<boolean> {
+  const result = await tx
+    .update(productVariants)
+    .set({ stock: sql`${productVariants.stock} - ${quantity}` })
+    .where(and(eq(productVariants.id, variantId), gte(productVariants.stock, quantity)));
+  return result[0].affectedRows > 0;
+}
+
+/** Versi varian dari {@link restoreStock}. */
+export async function restoreVariantStock(tx: Tx, variantId: number, quantity: number): Promise<void> {
+  await tx
+    .update(productVariants)
+    .set({ stock: sql`${productVariants.stock} + ${quantity}` })
+    .where(eq(productVariants.id, variantId));
 }

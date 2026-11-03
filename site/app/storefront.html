@@ -118,10 +118,13 @@
           <label><span data-i18n="checkout.fullName">Nama lengkap</span><input name="name" autocomplete="name" maxlength="80" required></label>
           <label><span data-i18n="checkout.whatsapp">Nomor WhatsApp</span><input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 ()-]{9,20}" maxlength="20" required></label>
           <label class="full"><span data-i18n="checkout.email">Email</span><input name="email" type="email" autocomplete="email" maxlength="120" required></label>
+          <label class="full"><span data-i18n="checkout.country">Negara</span><select name="country" id="checkout-country" autocomplete="country-name"></select></label>
           <label><span data-i18n="checkout.province">Provinsi</span><input name="province" autocomplete="address-level1" maxlength="80" required></label>
           <label><span data-i18n="checkout.city">Kota / Kabupaten</span><input name="city" autocomplete="address-level2" maxlength="80" required></label>
-          <label><span data-i18n="checkout.district">Kecamatan</span><input name="district" autocomplete="address-level3" maxlength="80" required></label>
-          <label><span data-i18n="checkout.village">Kelurahan / Desa</span><input name="village" maxlength="80" required></label>
+          <div class="form-grid domestic-only" id="domestic-only-fields">
+            <label><span data-i18n="checkout.district">Kecamatan</span><input name="district" autocomplete="address-level3" maxlength="80" required></label>
+            <label><span data-i18n="checkout.village">Kelurahan / Desa</span><input name="village" maxlength="80" required></label>
+          </div>
           <label class="full"><span data-i18n="checkout.fullAddress">Alamat lengkap</span><textarea name="address" autocomplete="street-address" rows="3" maxlength="400" data-i18n-placeholder="checkout.addressPlaceholder" placeholder="Nama jalan, nomor rumah, RT/RW, patokan" required></textarea></label>
           <label><span data-i18n="checkout.postal">Kode pos</span><input name="postal" inputmode="numeric" autocomplete="postal-code" pattern="[0-9]{5}" maxlength="5" data-i18n-placeholder="checkout.postalPlaceholder" placeholder="5 digit" required></label>
           <label><span data-i18n="checkout.notes">Catatan (opsional)</span><input name="notes" maxlength="200" data-i18n-placeholder="checkout.notesPlaceholder" placeholder="Contoh: titip ke resepsionis"></label>
@@ -133,6 +136,10 @@
             <button type="button" class="quote-button" id="quote-shipping" data-i18n="checkout.checkShipping">Cek Ongkos Kirim</button>
             <p id="shipping-status" role="status"></p>
             <div id="shipping-options"></div>
+          </div>
+          <div id="shipping-international-section" hidden>
+            <p class="shipping-help" data-i18n="checkout.internationalHelp">Pilih metode pengiriman internasional:</p>
+            <div id="shipping-international-options"></div>
           </div>
         </fieldset>
         <fieldset><legend data-i18n="checkout.paymentLegend">03 / Pembayaran</legend>

@@ -13,11 +13,15 @@ export async function GET() {
     const shippingOriginId = await getNumericSetting("shipping_origin_id", 0);
     const shippingOriginLabel = await getSetting("shipping_origin_label", "");
     const shippingMode = await getShippingMode();
+    const internationalStandardFee = await getNumericSetting("international_standard_fee", 0);
+    const internationalExpressFee = await getNumericSetting("international_express_fee", 0);
     return Response.json(
       {
         shippingFlatFee,
         shippingMode,
         shippingOrigin: shippingOriginId > 0 ? { id: shippingOriginId, label: shippingOriginLabel } : null,
+        internationalStandardFee,
+        internationalExpressFee,
       },
       { headers: { "cache-control": "no-store" } },
     );
@@ -36,6 +40,8 @@ export async function POST(request: Request) {
     shippingOriginId?: number;
     shippingOriginLabel?: string;
     shippingMode?: string;
+    internationalStandardFee?: number;
+    internationalExpressFee?: number;
   };
   try {
     body = await request.json();
@@ -65,6 +71,20 @@ export async function POST(request: Request) {
         return Response.json({ error: "Mode ongkir tidak valid." }, { status: 400 });
       }
       await setSetting("shipping_mode", body.shippingMode);
+    }
+
+    if (body.internationalStandardFee !== undefined) {
+      if (!Number.isInteger(body.internationalStandardFee) || body.internationalStandardFee < 0 || body.internationalStandardFee > 20000000) {
+        return Response.json({ error: "Nominal ongkir internasional (Standard) tidak valid." }, { status: 400 });
+      }
+      await setSetting("international_standard_fee", String(body.internationalStandardFee));
+    }
+
+    if (body.internationalExpressFee !== undefined) {
+      if (!Number.isInteger(body.internationalExpressFee) || body.internationalExpressFee < 0 || body.internationalExpressFee > 20000000) {
+        return Response.json({ error: "Nominal ongkir internasional (Express) tidak valid." }, { status: 400 });
+      }
+      await setSetting("international_express_fee", String(body.internationalExpressFee));
     }
 
     return Response.json({ ok: true });

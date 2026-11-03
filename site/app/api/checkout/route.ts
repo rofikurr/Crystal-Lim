@@ -1,8 +1,8 @@
 import { sameOrigin } from "../../../lib/auth/session";
-import { createOrder, setOrderInvoice, CheckoutError } from "../../../db/orders";
+import { createOrder, setOrderInvoice, CheckoutError, type ShippingMethod } from "../../../db/orders";
 import { createInvoice, XenditError } from "../../../lib/xendit";
-import { computeShippingFee } from "../../../lib/shipping";
-import { isValidEmail, isValidPostalCode } from "../../../lib/validation";
+import { computeShippingFee, getInternationalShippingFee, type InternationalShippingMethod } from "../../../lib/shipping";
+import { isValidEmail, isValidInternationalPostalCode, isValidPostalCode } from "../../../lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "Permintaan tidak valid." }, { status: 403 });
   let body: {
     customer?: Record<string, unknown>;
-    items?: { id: string; quantity: number }[];
+    items?: { id: string; quantity: number; variantId?: number | null }[];
   };
   try {
     body = await request.json();
@@ -27,42 +27,85 @@ export async function POST(request: Request) {
   const name = str(customer.name, 80);
   const phone = str(customer.phone, 20);
   const email = str(customer.email, 120);
-  const province = str(customer.province, 80);
   const city = str(customer.city, 80);
-  const district = str(customer.district, 80);
-  const village = str(customer.village, 80);
   const address = str(customer.address, 400);
-  const postal = typeof customer.postal === "string" && isValidPostalCode(customer.postal) ? customer.postal : null;
   const notes = typeof customer.notes === "string" ? customer.notes.trim().slice(0, 200) : "";
-  const shippingCourier = typeof customer.shippingCourier === "string" ? customer.shippingCourier.slice(0, 32) : undefined;
-  const shippingService = typeof customer.shippingService === "string" ? customer.shippingService.slice(0, 32) : undefined;
   const items = Array.isArray(body.items) ? body.items : [];
 
+  // Negara kosong/"Indonesia" = alamat domestik (jalur lama: RajaOngkir/flat,
+  // field administratif lengkap). Negara lain = alamat internasional (ongkir
+  // flat manual dari admin, cuma 2 pilihan: Standard/Express).
+  const country = typeof customer.country === "string" ? customer.country.trim().slice(0, 80) : "";
+  const isInternational = country !== "" && country.toLowerCase() !== "indonesia";
+
   if (
-    !name || !phone || !email || !province || !city || !district || !village || !address || !postal ||
-    !isValidEmail(email) ||
+    !name || !phone || !email || !city || !address || !isValidEmail(email) ||
     items.length === 0 || items.length > 20 ||
-    items.some((item) => typeof item.id !== "string" || !Number.isInteger(item.quantity))
+    items.some((item) => typeof item.id !== "string" || !Number.isInteger(item.quantity) ||
+      (item.variantId !== undefined && item.variantId !== null && !Number.isInteger(item.variantId)))
   ) {
     return Response.json({ error: "Periksa kembali data alamat dan produk pesanan." }, { status: 400 });
   }
 
+  let province: string | null;
+  let intlPostal: string | null = null;
+  let intlMethod: InternationalShippingMethod | null = null;
+  let district: string | null = null;
+  let village: string | null = null;
+  let postal: string | null = null;
+  let shippingCourier: string | undefined;
+  let shippingService: string | undefined;
+
+  if (isInternational) {
+    province = str(customer.province, 80);
+    intlPostal = typeof customer.postal === "string" && isValidInternationalPostalCode(customer.postal.trim())
+      ? customer.postal.trim()
+      : null;
+    intlMethod = customer.shippingMethod === "intl_express" ? "intl_express" : customer.shippingMethod === "intl_standard" ? "intl_standard" : null;
+    if (!province || !intlPostal || !intlMethod) {
+      return Response.json({ error: "Periksa kembali data alamat dan pilihan pengiriman internasional." }, { status: 400 });
+    }
+  } else {
+    province = str(customer.province, 80);
+    district = str(customer.district, 80);
+    village = str(customer.village, 80);
+    postal = typeof customer.postal === "string" && isValidPostalCode(customer.postal) ? customer.postal : null;
+    if (!province || !district || !village || !postal) {
+      return Response.json({ error: "Periksa kembali data alamat dan produk pesanan." }, { status: 400 });
+    }
+    shippingCourier = typeof customer.shippingCourier === "string" ? customer.shippingCourier.slice(0, 32) : undefined;
+    shippingService = typeof customer.shippingService === "string" ? customer.shippingService.slice(0, 32) : undefined;
+  }
+
   try {
-    const shippingFee = await computeShippingFee({
-      postal,
-      items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
-      preferredCourier: shippingCourier,
-      preferredService: shippingService,
-    });
-    const shippingAddress = `${address}, ${village}, ${district}, ${city}, ${province} ${postal}`;
+    let shippingFee: number;
+    let shippingAddress: string;
+    let shippingMethod: ShippingMethod;
+
+    if (isInternational && intlMethod) {
+      shippingMethod = intlMethod;
+      shippingFee = await getInternationalShippingFee(intlMethod);
+      shippingAddress = `${address}, ${city}, ${province}, ${intlPostal}, ${country}`;
+    } else {
+      shippingMethod = "domestic";
+      shippingFee = await computeShippingFee({
+        postal: postal!,
+        items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
+        preferredCourier: shippingCourier,
+        preferredService: shippingService,
+      });
+      shippingAddress = `${address}, ${village}, ${district}, ${city}, ${province} ${postal}`;
+    }
+
     const order = await createOrder({
       customerName: name,
       customerEmail: email,
       customerPhone: phone,
       shippingAddress,
       notes,
-      items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
+      items: items.map((item) => ({ productId: item.id, quantity: item.quantity, variantId: item.variantId ?? null })),
       shippingFee,
+      shippingMethod,
     });
 
     const origin = new URL(request.url).origin;
@@ -73,7 +116,11 @@ export async function POST(request: Request) {
       customerEmail: order.customerEmail,
       customerPhone: order.customerPhone,
       items: [
-        ...order.items.map((item) => ({ name: item.productName, quantity: item.quantity, price: item.unitPrice })),
+        ...order.items.map((item) => ({
+          name: item.variantLabel ? `${item.productName} (${item.variantLabel})` : item.productName,
+          quantity: item.quantity,
+          price: item.unitPrice,
+        })),
         ...(order.shippingFee > 0 ? [{ name: "Ongkos kirim", quantity: 1, price: order.shippingFee }] : []),
       ],
       successUrl: `${origin}/?order=${order.id}&payment=success`,

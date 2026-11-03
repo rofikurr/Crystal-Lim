@@ -1,10 +1,17 @@
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "./index";
-import { categories, orderItems, orders, productCategories } from "./schema";
-import { decrementStock, listProducts, restoreStock } from "./catalog";
+import { orderItems, orders } from "./schema";
+import {
+  decrementStock,
+  decrementVariantStock,
+  listProducts,
+  restoreStock,
+  restoreVariantStock,
+} from "./catalog";
 import { nowForDb } from "../lib/db-time";
 
 export type OrderStatus = (typeof orders.$inferSelect)["status"];
+export type ShippingMethod = (typeof orders.$inferSelect)["shippingMethod"];
 
 export type OrderItem = {
   productId: string;
@@ -12,6 +19,8 @@ export type OrderItem = {
   productImage: string;
   unitPrice: number;
   quantity: number;
+  variantId: number | null;
+  variantLabel: string;
 };
 
 export type Order = {
@@ -28,6 +37,7 @@ export type Order = {
   xenditInvoiceId: string;
   xenditInvoiceUrl: string;
   trackingNumber: string;
+  shippingMethod: ShippingMethod;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
@@ -51,6 +61,8 @@ export async function listOrders(): Promise<Order[]> {
       productImage: row.productImage,
       unitPrice: row.unitPrice,
       quantity: row.quantity,
+      variantId: row.variantId,
+      variantLabel: row.variantLabel,
     });
     itemsByOrder.set(row.orderId, list);
   }
@@ -77,6 +89,8 @@ export async function listOrdersForCustomer(email: string, phone: string): Promi
       productImage: row.productImage,
       unitPrice: row.unitPrice,
       quantity: row.quantity,
+      variantId: row.variantId,
+      variantLabel: row.variantLabel,
     });
     itemsByOrder.set(row.orderId, list);
   }
@@ -95,6 +109,8 @@ export async function getOrder(id: string): Promise<Order | null> {
       productImage: row2.productImage,
       unitPrice: row2.unitPrice,
       quantity: row2.quantity,
+      variantId: row2.variantId,
+      variantLabel: row2.variantLabel,
     })),
   };
 }
@@ -105,25 +121,30 @@ export async function createOrder(input: {
   customerPhone: string;
   shippingAddress: string;
   notes: string;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; quantity: number; variantId?: number | null }[];
   shippingFee: number;
+  shippingMethod?: ShippingMethod;
 }): Promise<Order> {
   if (input.items.length === 0) throw new CheckoutError("Keranjang kosong.");
   const catalog = await listProducts();
   const byId = new Map(catalog.map((p) => [p.id, p]));
   const items: OrderItem[] = [];
-  for (const { productId, quantity } of input.items) {
+  for (const { productId, quantity, variantId } of input.items) {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
       throw new CheckoutError("Jumlah produk tidak valid.");
     }
     const product = byId.get(productId);
     if (!product) throw new CheckoutError("Salah satu produk sudah tidak tersedia.");
+    const variant = variantId ? product.variants.find((v) => v.id === variantId) : undefined;
+    if (variantId && !variant) throw new CheckoutError(`Varian produk ${product.name} sudah tidak tersedia.`);
     items.push({
       productId: product.id,
       productName: product.name,
       productImage: product.image,
-      unitPrice: product.price,
+      unitPrice: variant ? variant.price : product.price,
       quantity,
+      variantId: variant?.id ?? null,
+      variantLabel: variant?.label ?? "",
     });
   }
   const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
@@ -134,9 +155,12 @@ export async function createOrder(input: {
 
   await db.transaction(async (tx) => {
     for (const item of items) {
-      const ok = await decrementStock(tx, item.productId, item.quantity);
+      const ok = item.variantId
+        ? await decrementVariantStock(tx, item.variantId, item.quantity)
+        : await decrementStock(tx, item.productId, item.quantity);
       if (!ok) {
-        throw new CheckoutError(`Stok ${item.productName} tidak cukup. Kurangi jumlahnya dulu.`);
+        const label = item.variantId ? `${item.productName} (${item.variantLabel})` : item.productName;
+        throw new CheckoutError(`Stok ${label} tidak cukup. Kurangi jumlahnya dulu.`);
       }
     }
     await tx.insert(orders).values({
@@ -150,6 +174,7 @@ export async function createOrder(input: {
       shippingFee,
       total,
       status: "pending",
+      shippingMethod: input.shippingMethod ?? "domestic",
       createdAt: now,
       updatedAt: now,
     });
@@ -161,6 +186,8 @@ export async function createOrder(input: {
         productImage: item.productImage,
         unitPrice: item.unitPrice,
         quantity: item.quantity,
+        variantId: item.variantId,
+        variantLabel: item.variantLabel,
       })),
     );
   });
@@ -179,6 +206,7 @@ export async function createOrder(input: {
     xenditInvoiceId: "",
     xenditInvoiceUrl: "",
     trackingNumber: "",
+    shippingMethod: input.shippingMethod ?? "domestic",
     createdAt: now,
     updatedAt: now,
     items,
@@ -294,141 +322,12 @@ async function attachOrderItems(orderRows: (typeof orders.$inferSelect)[]): Prom
       productImage: row.productImage,
       unitPrice: row.unitPrice,
       quantity: row.quantity,
+      variantId: row.variantId,
+      variantLabel: row.variantLabel,
     });
     itemsByOrder.set(row.orderId, list);
   }
   return orderRows.map((row) => ({ ...row, items: itemsByOrder.get(row.id) ?? [] }));
-}
-
-function revenueRangeWhere(from: Date, to: Date) {
-  return and(
-    inArray(orders.status, REVENUE_STATUSES),
-    gte(orders.createdAt, toDbDateTime(from)),
-    lte(orders.createdAt, toDbDateTime(to)),
-  );
-}
-
-export type RevenueSummary = {
-  revenue: number;
-  orderCount: number;
-  averageOrderValue: number;
-  previousRevenue: number;
-  previousOrderCount: number;
-};
-
-/** Ringkasan pendapatan untuk rentang [from, to], dibandingkan rentang sebelumnya dengan panjang yang sama. */
-export async function getRevenueSummary(from: Date, to: Date): Promise<RevenueSummary> {
-  const spanMs = to.getTime() - from.getTime();
-  const previousTo = new Date(from.getTime() - 1000);
-  const previousFrom = new Date(previousTo.getTime() - spanMs);
-
-  const [current, previous] = await Promise.all([
-    db.select({ total: orders.total }).from(orders).where(revenueRangeWhere(from, to)),
-    db.select({ total: orders.total }).from(orders).where(revenueRangeWhere(previousFrom, previousTo)),
-  ]);
-
-  const revenue = current.reduce((sum, row) => sum + row.total, 0);
-  const orderCount = current.length;
-  const previousRevenue = previous.reduce((sum, row) => sum + row.total, 0);
-  return {
-    revenue,
-    orderCount,
-    averageOrderValue: orderCount > 0 ? Math.round(revenue / orderCount) : 0,
-    previousRevenue,
-    previousOrderCount: previous.length,
-  };
-}
-
-/** Pendapatan harian untuk rentang [from, to] bebas (bukan cuma N hari terakhir seperti getDailyRevenue). */
-export async function getRevenueTimeSeries(from: Date, to: Date): Promise<DailyRevenuePoint[]> {
-  const rows = await db
-    .select({ createdAt: orders.createdAt, total: orders.total })
-    .from(orders)
-    .where(revenueRangeWhere(from, to));
-
-  const byDay = new Map<string, { revenue: number; orderCount: number }>();
-  for (const row of rows) {
-    const day = row.createdAt.slice(0, 10);
-    const entry = byDay.get(day) ?? { revenue: 0, orderCount: 0 };
-    entry.revenue += row.total;
-    entry.orderCount += 1;
-    byDay.set(day, entry);
-  }
-
-  const points: DailyRevenuePoint[] = [];
-  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
-  const endDay = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()));
-  while (cursor.getTime() <= endDay.getTime()) {
-    const key = cursor.toISOString().slice(0, 10);
-    const entry = byDay.get(key);
-    points.push({ date: key, revenue: entry?.revenue ?? 0, orderCount: entry?.orderCount ?? 0 });
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return points;
-}
-
-export type CategoryRevenuePoint = { categoryId: number; categoryName: string; quantity: number; revenue: number };
-
-/** Breakdown pendapatan per kategori produk (kategori sistem seperti Best Seller tidak dihitung). */
-export async function getRevenueByCategory(from: Date, to: Date): Promise<CategoryRevenuePoint[]> {
-  const rows = await db
-    .select({
-      categoryId: categories.id,
-      categoryName: categories.name,
-      quantity: orderItems.quantity,
-      unitPrice: orderItems.unitPrice,
-    })
-    .from(orderItems)
-    .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .innerJoin(productCategories, eq(productCategories.productId, orderItems.productId))
-    .innerJoin(categories, eq(categories.id, productCategories.categoryId))
-    .where(and(revenueRangeWhere(from, to), eq(categories.isSystem, false)));
-
-  const byCategory = new Map<number, CategoryRevenuePoint>();
-  for (const row of rows) {
-    const entry = byCategory.get(row.categoryId) ?? {
-      categoryId: row.categoryId,
-      categoryName: row.categoryName,
-      quantity: 0,
-      revenue: 0,
-    };
-    entry.quantity += row.quantity;
-    entry.revenue += row.quantity * row.unitPrice;
-    byCategory.set(row.categoryId, entry);
-  }
-  return [...byCategory.values()].sort((a, b) => b.revenue - a.revenue);
-}
-
-export type PaginatedOrders = { orders: Order[]; total: number; page: number; pageSize: number };
-
-/** Daftar pesanan (lunas ke atas) dalam rentang [from, to], dipaginasi untuk tabel laporan. */
-export async function listOrdersInRange(
-  from: Date,
-  to: Date,
-  page: number,
-  pageSize: number,
-): Promise<PaginatedOrders> {
-  const where = revenueRangeWhere(from, to);
-  const [countRow] = await db.select({ count: sql<number>`count(*)` }).from(orders).where(where);
-  const total = Number(countRow?.count ?? 0);
-  const orderRows = await db
-    .select()
-    .from(orders)
-    .where(where)
-    .orderBy(desc(orders.createdAt))
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
-  return { orders: await attachOrderItems(orderRows), total, page, pageSize };
-}
-
-/** Semua pesanan (lunas ke atas) dalam rentang [from, to], tanpa paginasi — dipakai untuk export CSV. */
-export async function listAllOrdersInRange(from: Date, to: Date): Promise<Order[]> {
-  const orderRows = await db
-    .select()
-    .from(orders)
-    .where(revenueRangeWhere(from, to))
-    .orderBy(desc(orders.createdAt));
-  return attachOrderItems(orderRows);
 }
 
 export async function updateOrderStatus(id: string, status: OrderStatus) {
@@ -451,7 +350,8 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
     if (enteringRestorableState) {
       const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
       for (const item of items) {
-        await restoreStock(tx, item.productId, item.quantity);
+        if (item.variantId) await restoreVariantStock(tx, item.variantId, item.quantity);
+        else await restoreStock(tx, item.productId, item.quantity);
       }
     }
 

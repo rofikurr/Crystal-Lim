@@ -1,8 +1,8 @@
 {
-  "id": "cb6350f0-dd12-4a31-82a1-60a923f7baf5",
-  "prevId": "ffe2297c-eefb-43b7-98d8-ac94db6fb012",
   "version": "5",
   "dialect": "mysql",
+  "id": "5df65c83-1cfe-4e7b-a331-c488799c101f",
+  "prevId": "cb6350f0-dd12-4a31-82a1-60a923f7baf5",
   "tables": {
     "addresses": {
       "name": "addresses",
@@ -98,15 +98,15 @@
         "addresses_user_id_users_id_fk": {
           "name": "addresses_user_id_users_id_fk",
           "tableFrom": "addresses",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -397,15 +397,15 @@
         "order_items_order_id_orders_id_fk": {
           "name": "order_items_order_id_orders_id_fk",
           "tableFrom": "order_items",
+          "tableTo": "orders",
           "columnsFrom": [
             "order_id"
           ],
-          "tableTo": "orders",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -517,6 +517,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "''"
+        },
+        "shipping_method": {
+          "name": "shipping_method",
+          "type": "enum('domestic','intl_standard','intl_express')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'domestic'"
         },
         "created_at": {
           "name": "created_at",
@@ -630,28 +638,28 @@
         "product_categories_product_id_products_id_fk": {
           "name": "product_categories_product_id_products_id_fk",
           "tableFrom": "product_categories",
+          "tableTo": "products",
           "columnsFrom": [
             "product_id"
           ],
-          "tableTo": "products",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "product_categories_category_id_categories_id_fk": {
           "name": "product_categories_category_id_categories_id_fk",
           "tableFrom": "product_categories",
+          "tableTo": "categories",
           "columnsFrom": [
             "category_id"
           ],
-          "tableTo": "categories",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -859,28 +867,28 @@
         "role_permissions_role_id_roles_id_fk": {
           "name": "role_permissions_role_id_roles_id_fk",
           "tableFrom": "role_permissions",
+          "tableTo": "roles",
           "columnsFrom": [
             "role_id"
           ],
-          "tableTo": "roles",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "role_permissions_permission_id_permissions_id_fk": {
           "name": "role_permissions_permission_id_permissions_id_fk",
           "tableFrom": "role_permissions",
+          "tableTo": "permissions",
           "columnsFrom": [
             "permission_id"
           ],
-          "tableTo": "permissions",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1059,15 +1067,15 @@
         "users_role_id_roles_id_fk": {
           "name": "users_role_id_roles_id_fk",
           "tableFrom": "users",
+          "tableTo": "roles",
           "columnsFrom": [
             "role_id"
           ],
-          "tableTo": "roles",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1118,15 +1126,15 @@
         "wishlist_items_user_id_users_id_fk": {
           "name": "wishlist_items_user_id_users_id_fk",
           "tableFrom": "wishlist_items",
+          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1144,9 +1152,9 @@
   },
   "views": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
+    "tables": {},
+    "columns": {}
   },
   "internal": {
     "tables": {},

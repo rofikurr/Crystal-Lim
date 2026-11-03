@@ -14,7 +14,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { patchJson } from "@/lib/api-client";
-import { money, STATUS_KEYS, type Order } from "./types";
+import { money, SHIPPING_METHOD_KEYS, STATUS_KEYS, type Order } from "./types";
 import { useTranslation } from "@/lib/i18n/context";
 
 export default function OrderDetailSheet({
@@ -60,7 +60,12 @@ export default function OrderDetailSheet({
               <SheetDescription>{order.id}</SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-4 px-4 pb-4">
-              <Badge className="w-fit">{t(STATUS_KEYS[order.status])}</Badge>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge className="w-fit">{t(STATUS_KEYS[order.status])}</Badge>
+                {order.shippingMethod !== "domestic" && (
+                  <Badge variant="outline" className="w-fit">{t(SHIPPING_METHOD_KEYS[order.shippingMethod])}</Badge>
+                )}
+              </div>
               <div>
                 <p className="text-sm font-semibold">{t("orders.detail.contact")}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -88,7 +93,12 @@ export default function OrderDetailSheet({
                         className="size-10 shrink-0 rounded-md border border-border object-cover"
                       />
                       <div className="flex-1">
-                        <p className="font-medium">{item.productName}</p>
+                        <p className="font-medium">
+                          {item.productName}
+                          {item.variantLabel && (
+                            <span className="text-muted-foreground"> — {item.variantLabel}</span>
+                          )}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {item.quantity} × {money.format(item.unitPrice)}
                         </p>

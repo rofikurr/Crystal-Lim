@@ -6,7 +6,7 @@ import { getNumericSetting } from "../db/settings";
 import { getEffectiveUser } from "../lib/auth/permissions";
 import { listAddresses } from "../db/addresses";
 import { listWishlistProductIds } from "../db/wishlist";
-import { getShippingMode } from "../lib/shipping";
+import { getShippingMode, getInternationalShippingFee } from "../lib/shipping";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +73,8 @@ export async function GET() {
       return 0;
     });
     const shippingMode = await getShippingMode().catch(() => "auto" as const);
+    const internationalStandardFee = await getInternationalShippingFee("intl_standard").catch(() => 0);
+    const internationalExpressFee = await getInternationalShippingFee("intl_express").catch(() => 0);
     const lang = (await cookies()).get("lang")?.value === "en" ? "en" : "id";
 
     const effectiveUser = await getEffectiveUser().catch((error) => {
@@ -126,7 +128,7 @@ export async function GET() {
     const catalog = JSON.stringify(products).replace(/</g, "\\u003c");
     const userData = JSON.stringify(crystalUser).replace(/</g, "\\u003c");
     html = html.replace('<script src="i18n.js"></script>', `<script>window.crystalLang=${JSON.stringify(lang)};</script><script src="i18n.js"></script>`);
-    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee},mode:${JSON.stringify(shippingMode)}};window.crystalUser=${userData};</script>`);
+    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee},mode:${JSON.stringify(shippingMode)},internationalStandardFee:${internationalStandardFee},internationalExpressFee:${internationalExpressFee}};window.crystalUser=${userData};</script>`);
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   } catch (error) {
     console.error("Storefront unavailable", error);

@@ -1,0 +1,1 @@
+ALTER TABLE `products` ADD `video` varchar(800) DEFAULT '' NOT NULL;

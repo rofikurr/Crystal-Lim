@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { postJson } from "@/lib/api-client";
-import { BEST_SELLER_SLUG, EMPTY_PRODUCT, type Category, type Product } from "./types";
+import { BEST_SELLER_SLUG, EMPTY_PRODUCT, type Category, type Product, type ProductVariant } from "./types";
+
+function youtubeEmbedUrl(url: string): string | null {
+  const match = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([a-zA-Z0-9_-]{6,})/.exec(url);
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+}
 import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProductFormDialog({
@@ -36,16 +41,29 @@ export default function ProductFormDialog({
   const { t } = useTranslation();
   const [form, setForm] = useState<Product>(EMPTY_PRODUCT);
   const [categoryIds, setCategoryIds] = useState<number[]>([]);
-  const [gallery, setGallery] = useState("");
+  const [gallery, setGallery] = useState<string[]>([]);
+  const [galleryUrlInput, setGalleryUrlInput] = useState("");
+  const [videoUrlInput, setVideoUrlInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const dragIndex = useRef<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    const next = product ? { ...product, images: [...product.images] } : { ...EMPTY_PRODUCT };
+    const next = product
+      ? {
+          ...product,
+          images: [...product.images],
+          videos: [...product.videos],
+          variants: product.variants.map((v) => ({ ...v })),
+        }
+      : { ...EMPTY_PRODUCT };
     setForm(next);
     setCategoryIds(next.categories.map((c) => c.id));
-    setGallery(next.images.filter((url) => url !== next.image).join("\n"));
+    setGallery([next.image, ...next.images.filter((url) => url !== next.image)].filter(Boolean));
+    setGalleryUrlInput("");
+    setVideoUrlInput("");
   }, [open, product]);
 
   function update<K extends keyof Product>(key: K, value: Product[K]) {
@@ -56,38 +74,140 @@ export default function ProductFormDialog({
     setCategoryIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
   }
 
+  function addVariant() {
+    setForm((prev) => ({ ...prev, variants: [...prev.variants, { label: "", price: prev.price, stock: 0 }] }));
+  }
+
+  function updateVariant(index: number, patch: Partial<ProductVariant>) {
+    setForm((prev) => ({
+      ...prev,
+      variants: prev.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)),
+    }));
+  }
+
+  function removeVariant(index: number) {
+    setForm((prev) => ({ ...prev, variants: prev.variants.filter((_, i) => i !== index) }));
+  }
+
   const bestSellerCategory = categories.find((c) => c.slug === BEST_SELLER_SLUG);
   const isBestSeller = bestSellerCategory ? categoryIds.includes(bestSellerCategory.id) : false;
 
-  async function upload(file: File | undefined) {
-    if (!file) return;
-    setUploading(true);
+  async function uploadVideoFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const remaining = 5 - form.videos.length;
+    if (remaining <= 0) {
+      toast.error(t("products.form.videoLimitReached"));
+      return;
+    }
+    const selected = Array.from(files).slice(0, remaining);
+    setUploadingVideo(true);
     try {
-      const body = new FormData();
-      body.append("image", file);
-      const response = await fetch("/api/admin/upload", { method: "POST", body });
-      const data = (await response.json()) as { error?: string; url: string };
-      if (!response.ok) throw new Error(data.error || t("products.form.uploadFailed"));
-      update("image", data.url);
+      const uploaded: string[] = [];
+      for (const file of selected) {
+        const body = new FormData();
+        body.append("video", file);
+        const response = await fetch("/api/admin/upload", { method: "POST", body });
+        const data = (await response.json()) as { error?: string; url: string };
+        if (!response.ok) throw new Error(data.error || t("products.form.uploadVideoFailed"));
+        uploaded.push(data.url);
+      }
+      update("videos", [...form.videos, ...uploaded]);
+      toast.success(t("products.form.uploadVideoSuccess"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("products.form.uploadVideoFailed"));
+    } finally {
+      setUploadingVideo(false);
+    }
+  }
+
+  function addVideoUrl() {
+    const url = videoUrlInput.trim();
+    if (!url) return;
+    if (form.videos.length >= 5) {
+      toast.error(t("products.form.videoLimitReached"));
+      return;
+    }
+    update("videos", [...form.videos, url]);
+    setVideoUrlInput("");
+  }
+
+  function removeVideo(index: number) {
+    update(
+      "videos",
+      form.videos.filter((_, i) => i !== index),
+    );
+  }
+
+  async function uploadGalleryFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const remaining = 12 - gallery.length;
+    if (remaining <= 0) {
+      toast.error(t("products.form.galleryLimitReached"));
+      return;
+    }
+    const selected = Array.from(files).slice(0, remaining);
+    setUploadingGallery(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of selected) {
+        const body = new FormData();
+        body.append("image", file);
+        const response = await fetch("/api/admin/upload", { method: "POST", body });
+        const data = (await response.json()) as { error?: string; url: string };
+        if (!response.ok) throw new Error(data.error || t("products.form.uploadFailed"));
+        uploaded.push(data.url);
+      }
+      setGallery((prev) => [...prev, ...uploaded]);
       toast.success(t("products.form.uploadSuccess"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("products.form.uploadFailed"));
     } finally {
-      setUploading(false);
+      setUploadingGallery(false);
     }
+  }
+
+  function addGalleryUrl() {
+    const url = galleryUrlInput.trim();
+    if (!url) return;
+    if (gallery.length >= 12) {
+      toast.error(t("products.form.galleryLimitReached"));
+      return;
+    }
+    setGallery((prev) => [...prev, url]);
+    setGalleryUrlInput("");
+  }
+
+  function removeGalleryImage(index: number) {
+    setGallery((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function reorderGallery(from: number, to: number) {
+    if (from === to) return;
+    setGallery((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    const photos = gallery.map((x) => x.trim()).filter(Boolean);
+    if (photos.length === 0) {
+      toast.error(t("products.form.photoRequired"));
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
         ...form,
-        images: gallery
-          .split("\n")
-          .map((x) => x.trim())
-          .filter(Boolean),
+        image: photos[0],
+        images: photos,
         categoryIds,
+        variants: form.variants
+          .map((v) => ({ ...v, label: v.label.trim() }))
+          .filter((v) => v.label.length > 0),
       };
       const data = await postJson<{ product: Product }>("/api/admin/products", payload);
       toast.success(t("products.form.saveSuccess", { name: data.product.name }));
@@ -267,52 +387,182 @@ export default function ProductFormDialog({
               <Label htmlFor="product-description">{t("products.form.description")}</Label>
               <Textarea
                 id="product-description"
-                rows={4}
-                maxLength={3000}
+                rows={12}
+                maxLength={20000}
+                className="min-h-56"
                 value={form.description}
                 onChange={(e) => update("description", e.target.value)}
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-photo">{t("products.form.mainPhoto")}</Label>
-              <Input
-                id="product-photo"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                disabled={uploading}
-                onChange={(e) => upload(e.target.files?.[0])}
-              />
-              <p className="text-xs text-muted-foreground">
-                {uploading ? t("products.form.uploading") : t("products.form.uploadHint")}
-              </p>
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-image-url">{t("products.form.orPhotoUrl")}</Label>
-              <Input
-                id="product-image-url"
-                required
-                value={form.image}
-                placeholder="https://... atau /media/..."
-                onChange={(e) => update("image", e.target.value)}
-              />
-              {form.image && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={form.image}
-                  alt={t("products.form.photoPreviewAlt")}
-                  className="mt-2 size-28 rounded-md border border-border object-cover"
+              <Label>{t("products.form.video")}</Label>
+              <p className="text-xs text-muted-foreground">{t("products.form.uploadVideoHint")}</p>
+              <p className="text-xs text-muted-foreground">{t("products.form.videoAlwaysFirst")}</p>
+              <div className="flex flex-wrap gap-2">
+                {form.videos.map((url, index) => (
+                  <div key={index} className="relative h-20 w-32 shrink-0 overflow-hidden rounded-md border border-border bg-black">
+                    {youtubeEmbedUrl(url) ? (
+                      <iframe src={youtubeEmbedUrl(url)!} title={`Video ${index + 1}`} className="size-full" />
+                    ) : (
+                      <video src={url} controls className="size-full object-contain" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeVideo(index)}
+                      aria-label={t("products.form.removeVideo")}
+                      className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-black/60 text-xs leading-none text-white"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {form.videos.length < 5 && (
+                  <label className="flex h-20 w-32 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-center text-[11px] text-muted-foreground hover:bg-accent">
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      multiple
+                      disabled={uploadingVideo}
+                      className="hidden"
+                      onChange={(e) => {
+                        uploadVideoFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                    <span>{uploadingVideo ? t("products.form.uploadingVideo") : `+ ${t("products.form.addVideo")}`}</span>
+                  </label>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={videoUrlInput}
+                  placeholder="https://... (link YouTube juga bisa)"
+                  onChange={(e) => setVideoUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addVideoUrl();
+                    }
+                  }}
                 />
-              )}
+                <Button type="button" variant="outline" size="sm" onClick={addVideoUrl}>
+                  {t("products.form.addFromUrl")}
+                </Button>
+              </div>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="product-gallery">{t("products.form.gallery")}</Label>
-              <Textarea
-                id="product-gallery"
-                rows={3}
-                value={gallery}
-                placeholder="https://..."
-                onChange={(e) => setGallery(e.target.value)}
-              />
+              <Label>{t("products.form.gallery")}</Label>
+              <p className="text-xs text-muted-foreground">{t("products.form.photoDragHint")}</p>
+              <div className="flex flex-wrap gap-2">
+                {gallery.map((url, index) => (
+                  <div
+                    key={index}
+                    draggable
+                    onDragStart={() => {
+                      dragIndex.current = index;
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragIndex.current !== null) reorderGallery(dragIndex.current, index);
+                      dragIndex.current = null;
+                    }}
+                    className="relative size-20 shrink-0 cursor-move overflow-hidden rounded-md border border-border"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="size-full object-cover" />
+                    {index === 0 && (
+                      <span className="absolute bottom-0.5 left-0.5 rounded bg-black/60 px-1 text-[9px] leading-tight text-white">
+                        {t("products.form.mainBadge")}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeGalleryImage(index)}
+                      aria-label={t("products.form.removePhoto")}
+                      className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-black/60 text-xs leading-none text-white"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {gallery.length < 12 && (
+                  <label className="flex size-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-center text-[11px] text-muted-foreground hover:bg-accent">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      disabled={uploadingGallery}
+                      className="hidden"
+                      onChange={(e) => {
+                        uploadGalleryFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                    <span>{uploadingGallery ? t("products.form.uploading") : `+ ${t("products.form.addPhoto")}`}</span>
+                  </label>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={galleryUrlInput}
+                  placeholder="https://..."
+                  onChange={(e) => setGalleryUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addGalleryUrl();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={addGalleryUrl}>
+                  {t("products.form.addFromUrl")}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>{t("products.form.variants")}</Label>
+              <p className="text-xs text-muted-foreground">{t("products.form.variantsHint")}</p>
+              <div className="flex flex-col gap-2">
+                {form.variants.map((variant, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      aria-label={t("products.form.variantLabelPlaceholder")}
+                      placeholder={t("products.form.variantLabelPlaceholder")}
+                      value={variant.label}
+                      onChange={(e) => updateVariant(index, { label: e.target.value })}
+                      maxLength={140}
+                      className="flex-[2]"
+                    />
+                    <Input
+                      aria-label={t("products.form.variantPricePlaceholder")}
+                      placeholder={t("products.form.variantPricePlaceholder")}
+                      type="number"
+                      min={0}
+                      max={1000000000}
+                      value={variant.price}
+                      onChange={(e) => updateVariant(index, { price: Number(e.target.value) })}
+                      className="flex-1"
+                    />
+                    <Input
+                      aria-label={t("products.form.variantStockPlaceholder")}
+                      placeholder={t("products.form.variantStockPlaceholder")}
+                      type="number"
+                      min={0}
+                      max={1000000}
+                      value={variant.stock}
+                      onChange={(e) => updateVariant(index, { stock: Number(e.target.value) })}
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="outline" size="icon-sm" onClick={() => removeVariant(index)}>
+                      ×
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                {t("products.form.addVariant")}
+              </Button>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="product-source-url">{t("products.form.sourceUrl")}</Label>
