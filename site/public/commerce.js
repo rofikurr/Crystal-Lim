@@ -18,9 +18,33 @@
     const stockNote = outOfStock ? t('detail.outOfStockNote') : (stock <= 5 ? t('detail.lowStockNote', { stock }) : '');
     return { price, stock, outOfStock, maxQty, stockNote };
   }
-  function youtubeEmbedUrl(url) {
+  function youtubeId(url) {
     const match = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([a-zA-Z0-9_-]{6,})/.exec(url || '');
-    return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+    return match ? match[1] : null;
+  }
+  function youtubeEmbedUrl(url) {
+    const id = youtubeId(url);
+    return id ? `https://www.youtube.com/embed/${id}` : null;
+  }
+  function youtubeThumbnailUrl(url) {
+    const id = youtubeId(url);
+    return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
+  }
+  // Video file (bukan link YouTube) tidak punya thumbnail siap pakai — ambil
+  // sendiri satu frame-nya lewat <video>+<canvas> di browser, tanpa perlu
+  // olah video di server (ffmpeg dll).
+  function generateVideoThumbnail(videoSrc, imgEl) {
+    const video = document.createElement('video');
+    video.src = videoSrc; video.muted = true; video.playsInline = true; video.preload = 'metadata';
+    video.addEventListener('loadeddata', () => { video.currentTime = Math.min(0.5, (video.duration || 1) / 2); });
+    video.addEventListener('seeked', () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        imgEl.src = canvas.toDataURL('image/jpeg', 0.7);
+      } catch { /* biarkan fallback foto utama kalau gagal (mis. format tidak didukung) */ }
+    }, { once: true });
   }
   function mediaList() {
     const videos = (activeProduct.videos || []).map(src => ({ type: 'video', src }));
@@ -69,7 +93,12 @@
       <div class="detail-layout"><div class="detail-gallery">
         <div class="detail-image-wrap"><img class="detail-main-image" src="${esc(product.image)}" alt="${esc(product.name)}"><video class="detail-main-video" controls playsinline preload="metadata" hidden></video><iframe class="detail-main-youtube" title="${esc(product.name)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen hidden></iframe><span class="detail-image-count"></span></div>
         <div class="detail-gallery-nav"><button class="image-prev" aria-label="${t('detail.prevPhoto')}">←</button><span>${t('detail.originalPhotos')}</span><button class="image-next" aria-label="${t('detail.nextPhoto')}">→</button></div>
-        <div class="detail-thumbnails">${media.map((m,i)=>`<button class="detail-thumb${m.type==='video' ? ' detail-thumb-video' : ''}" data-index="${i}" aria-label="${m.type==='video' ? t('detail.viewVideo') : t('detail.viewPhoto', { index: i + 1 })}" aria-pressed="false"><img src="${esc(m.type==='video' ? product.image : m.src)}" alt="" loading="lazy">${m.type==='video' ? '<span class="thumb-play" aria-hidden="true">▶</span>' : ''}</button>`).join('')}</div>
+        <div class="detail-thumbnails">${media.map((m,i)=>{
+          if (m.type !== 'video') return `<button class="detail-thumb" data-index="${i}" aria-label="${t('detail.viewPhoto', { index: i + 1 })}" aria-pressed="false"><img src="${esc(m.src)}" alt="" loading="lazy"></button>`;
+          const ytThumb = youtubeThumbnailUrl(m.src);
+          const thumbSrc = ytThumb || product.image;
+          return `<button class="detail-thumb detail-thumb-video" data-index="${i}" aria-label="${t('detail.viewVideo')}" aria-pressed="false"><img src="${esc(thumbSrc)}" alt="" loading="lazy"${ytThumb ? '' : ` data-video-src="${esc(m.src)}"`}><span class="thumb-play" aria-hidden="true">▶</span></button>`;
+        }).join('')}</div>
       </div><div class="detail-copy"><p class="eyebrow">${t('detail.eyebrow')}</p><h1>${esc(product.name)}</h1><strong class="detail-price">${rupiah.format(state.price)}</strong>
       <p class="detail-description">${esc(product.description)}</p><p class="detail-stock-note"${state.stockNote ? '' : ' hidden'}>${esc(state.stockNote)}</p>
       ${hasVariants ? `<label class="detail-variant">${t('detail.chooseVariant')} <select class="detail-variant-select">${product.variants.map(v=>`<option value="${v.id}">${esc(v.label)}</option>`).join('')}</select></label>` : ''}
@@ -116,6 +145,7 @@
     qs('.detail-add',detail).addEventListener('click',()=>{if(add()) qs('.detail-feedback',detail).textContent=t('detail.addedToCart');});
     qs('.detail-buy',detail).addEventListener('click',()=>{if(add(true)) openCheckout();});
     qs('.detail-main-image',detail).addEventListener('error',event=>{ if(event.target.getAttribute('src')!==product.image) { event.target.src=product.image; qs('.detail-image-count',detail).textContent=t('detail.photoNotLoaded'); } });
+    qsa('.detail-thumb-video img[data-video-src]', detail).forEach(img => generateVideoThumbnail(img.dataset.videoSrc, img));
     showMedia(0); qs('.detail-back',detail).focus();
   }
   qsa('.product').forEach(card=>{
@@ -135,6 +165,7 @@
         const field = key === 'recipientName' ? 'name' : key;
         if (formEl.elements[field]) formEl.elements[field].value = addr[key];
       }
+      qsa('.saved-address-option', wrap).forEach(b => b.classList.toggle('active', b === button));
     }));
   }
   const form=qs('.checkout-form'), payStatus=qs('#payment-status'), payButton=qs('.place-order');
@@ -144,7 +175,7 @@
   const items=()=>Object.values(cart.reduce((all,p)=>{const id=p.id||products.find(x=>x.name===p.name)?.id;const variantId=p.variantId??null;const key=`${id}::${variantId??''}`;if(!all[key])all[key]={id,variantId,quantity:0};all[key].quantity++;return all;},{}));
 
   // --- Negara & pengiriman internasional ---
-  const COUNTRIES=['Indonesia','Australia','Austria','Belgium','Brazil','Brunei','Canada','China','Czech Republic','Denmark','Egypt','Finland','France','Germany','Hong Kong','India','Ireland','Italy','Japan','Jordan','Kuwait','Malaysia','Mexico','Netherlands','New Zealand','Norway','Oman','Philippines','Poland','Portugal','Qatar','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Taiwan','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam'];
+  const COUNTRIES=['Indonesia','Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo (Brazzaville)','Congo (DR)','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hong Kong','Hungary','Iceland','India','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'];
   const countrySelect=qs('#checkout-country');
   const domesticOnlyFields=qs('#domestic-only-fields');
   const shippingFlatNoteEl=qs('#shipping-flat-note');
@@ -171,10 +202,14 @@
     qsa('input[name="international-shipping-option"]',intlOptionsEl).forEach((input,i)=>input.addEventListener('change',()=>{selectedInternational=options[i];updateShippingTotal();}));
     selectedInternational=options[0];
   }
+  const provinceInput=form.elements.province;
+  const provinceOptionalHint=qs('.field-optional-hint',provinceInput?.closest('label'));
   function applyDestinationMode(){
     const intl=isInternational();
     domesticOnlyFields.hidden=intl;
     qsa('input',domesticOnlyFields).forEach(el=>{ el.required=!intl; });
+    if(provinceInput){ provinceInput.required=!intl; }
+    if(provinceOptionalHint){ provinceOptionalHint.hidden=!intl; }
     if(intl){
       postalInput.removeAttribute('pattern'); postalInput.removeAttribute('inputmode');
       shippingFlatNoteEl.hidden=true; shippingAutoSectionEl.hidden=true;

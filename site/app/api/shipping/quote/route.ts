@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return rateLimitResponse();
   }
 
-  let body: { postal?: string; items?: { id: string; quantity: number }[] };
+  let body: { postal?: string; items?: { id: string; quantity: number; variantId?: number | null }[] };
   try {
     body = await request.json();
   } catch {
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     !postal ||
     items.length === 0 ||
     items.length > 20 ||
-    items.some((item) => typeof item.id !== "string" || !Number.isInteger(item.quantity) || item.quantity < 1)
+    items.some((item) => typeof item.id !== "string" || !Number.isInteger(item.quantity) || item.quantity < 1 ||
+      (item.variantId !== undefined && item.variantId !== null && !Number.isInteger(item.variantId)))
   ) {
     return Response.json({ error: "Alamat atau keranjang tidak valid." }, { status: 400 });
   }
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   try {
     const options = await getShippingOptions({
       postal,
-      items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
+      items: items.map((item) => ({ productId: item.id, quantity: item.quantity, variantId: item.variantId ?? null })),
     });
     if (options.length === 0) {
       return Response.json(

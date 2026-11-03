@@ -20,8 +20,12 @@ const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 
 // Keep storefront prices consistent with the cart, using Indonesian formatting.
+// Varian dengan harga berbeda ditampilkan sebagai range "Rp X - Rp Y".
 qsa('.product').forEach(product => {
-  qs('.product-info strong', product).textContent = rupiah.format(Number(product.dataset.price));
+  const price = Number(product.dataset.price), priceMax = Number(product.dataset.priceMax);
+  qs('.product-info strong', product).textContent = priceMax > price
+    ? `${rupiah.format(price)} - ${rupiah.format(priceMax)}`
+    : rupiah.format(price);
 });
 
 const drawer = qs('.cart-drawer');

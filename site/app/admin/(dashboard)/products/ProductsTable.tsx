@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BEST_SELLER_SLUG, isBestSeller, money, type Product } from "./types";
+import { BEST_SELLER_SLUG, isBestSeller, priceLabel, type Product } from "./types";
 import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProductsTable({
@@ -86,7 +86,7 @@ export default function ProductsTable({
                   ? otherCategories.map((c) => c.name).join(", ")
                   : t("products.table.none")}
               </TableCell>
-              <TableCell>{money.format(product.price)}</TableCell>
+              <TableCell>{priceLabel(product)}</TableCell>
               <TableCell>
                 {product.stock <= 0 ? (
                   <Badge variant="outline" className="text-destructive">{t("products.table.outOfStock")}</Badge>

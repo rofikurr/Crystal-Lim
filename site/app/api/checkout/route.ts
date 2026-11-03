@@ -57,12 +57,14 @@ export async function POST(request: Request) {
   let shippingService: string | undefined;
 
   if (isInternational) {
+    // Provinsi/state opsional untuk alamat luar negeri — banyak negara tidak
+    // punya sistem administratif setingkat provinsi, jadi tidak dipaksa isi.
     province = str(customer.province, 80);
     intlPostal = typeof customer.postal === "string" && isValidInternationalPostalCode(customer.postal.trim())
       ? customer.postal.trim()
       : null;
     intlMethod = customer.shippingMethod === "intl_express" ? "intl_express" : customer.shippingMethod === "intl_standard" ? "intl_standard" : null;
-    if (!province || !intlPostal || !intlMethod) {
+    if (!intlPostal || !intlMethod) {
       return Response.json({ error: "Periksa kembali data alamat dan pilihan pengiriman internasional." }, { status: 400 });
     }
   } else {
@@ -85,12 +87,12 @@ export async function POST(request: Request) {
     if (isInternational && intlMethod) {
       shippingMethod = intlMethod;
       shippingFee = await getInternationalShippingFee(intlMethod);
-      shippingAddress = `${address}, ${city}, ${province}, ${intlPostal}, ${country}`;
+      shippingAddress = [address, city, province, intlPostal, country].filter(Boolean).join(", ");
     } else {
       shippingMethod = "domestic";
       shippingFee = await computeShippingFee({
         postal: postal!,
-        items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
+        items: items.map((item) => ({ productId: item.id, quantity: item.quantity, variantId: item.variantId ?? null })),
         preferredCourier: shippingCourier,
         preferredService: shippingService,
       });

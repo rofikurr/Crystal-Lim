@@ -82,13 +82,30 @@ export async function deleteCategory(id: number) {
   await db.delete(categories).where(eq(categories.id, id));
 }
 
-export type ProductVariant = { id: number; label: string; price: number; stock: number; position: number };
+export type ProductVariant = {
+  id: number;
+  label: string;
+  price: number;
+  stock: number;
+  position: number;
+  // null = pakai nilai produk induk (lihat `effectiveVariantDimensions`).
+  netWeight: number | null;
+  packedWeight: number | null;
+  netLength: number | null;
+  netWidth: number | null;
+  netHeight: number | null;
+  packedLength: number | null;
+  packedWidth: number | null;
+  packedHeight: number | null;
+};
 
 export type Product = {
   id: string;
   name: string;
   description: string;
   price: number;
+  /** Harga varian termahal — sama dengan `price` kalau tidak ada varian atau harganya seragam. Dipakai tampilkan range "Rp X - Rp Y" di katalog. */
+  priceMax: number;
   stock: number;
   netWeight: number;
   packedWeight: number;
@@ -109,6 +126,35 @@ export type Product = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ShippingDimensions = {
+  netWeight: number;
+  packedWeight: number;
+  netLength: number;
+  netWidth: number;
+  netHeight: number;
+  packedLength: number;
+  packedWidth: number;
+  packedHeight: number;
+};
+
+/**
+ * Berat/dimensi efektif untuk hitung ongkir: pakai punya varian kalau diisi
+ * (override), kalau tidak jatuh balik ke punya produk induk. Dipakai di
+ * `lib/shipping.ts` supaya varian ukuran besar/kecil dapat ongkir yang benar.
+ */
+export function effectiveDimensions(product: ShippingDimensions, variant?: ProductVariant | null): ShippingDimensions {
+  return {
+    netWeight: variant?.netWeight ?? product.netWeight,
+    packedWeight: variant?.packedWeight ?? product.packedWeight,
+    netLength: variant?.netLength ?? product.netLength,
+    netWidth: variant?.netWidth ?? product.netWidth,
+    netHeight: variant?.netHeight ?? product.netHeight,
+    packedLength: variant?.packedLength ?? product.packedLength,
+    packedWidth: variant?.packedWidth ?? product.packedWidth,
+    packedHeight: variant?.packedHeight ?? product.packedHeight,
+  };
+}
 
 type ProductRow = typeof products.$inferSelect;
 
@@ -201,7 +247,21 @@ async function variantsByProductIds(productIds: string[]): Promise<Map<string, P
   const map = new Map<string, ProductVariant[]>();
   for (const row of rows) {
     const list = map.get(row.productId) ?? [];
-    list.push({ id: row.id, label: row.label, price: row.price, stock: row.stock, position: row.position });
+    list.push({
+      id: row.id,
+      label: row.label,
+      price: row.price,
+      stock: row.stock,
+      position: row.position,
+      netWeight: row.netWeight,
+      packedWeight: row.packedWeight,
+      netLength: row.netLength,
+      netWidth: row.netWidth,
+      netHeight: row.netHeight,
+      packedLength: row.packedLength,
+      packedWidth: row.packedWidth,
+      packedHeight: row.packedHeight,
+    });
     map.set(row.productId, list);
   }
   return map;
@@ -212,11 +272,14 @@ function toProduct(
   categoryMap: Map<string, CategoryRef[]>,
   variantMap: Map<string, ProductVariant[]>,
 ): Product {
+  const variants = variantMap.get(row.id) ?? [];
+  const priceMax = variants.length > 0 ? Math.max(...variants.map((v) => v.price)) : row.price;
   return {
     id: row.id,
     name: row.name,
     description: row.description,
     price: row.price,
+    priceMax,
     stock: row.stock,
     netWeight: row.netWeight,
     packedWeight: row.packedWeight,
@@ -230,7 +293,7 @@ function toProduct(
     image: row.image,
     images: Array.isArray(row.images) ? row.images : [],
     videos: Array.isArray(row.videos) ? row.videos : [],
-    variants: variantMap.get(row.id) ?? [],
+    variants,
     url: row.sourceUrl,
     published: row.published,
     position: row.position,
@@ -257,11 +320,22 @@ export async function listProducts(includeHidden = false): Promise<Product[]> {
 }
 
 export async function saveProduct(
-  product: Omit<Product, "categories" | "variants"> & {
+  product: Omit<Product, "categories" | "variants" | "priceMax"> & {
     categoryIds: number[];
     variants: Omit<ProductVariant, "id">[];
   },
 ) {
+  // Kalau produk punya varian, harga & stok di level produk BUKAN lagi input
+  // bebas — harga = termurah antar varian (dipakai sebagai dasar "Rp X - Rp Y"
+  // bareng `priceMax`), stok = total semua varian. Supaya badge "stok habis"
+  // & harga di katalog/daftar admin selalu akurat tanpa perlu query SUM live.
+  const effectivePrice = product.variants.length > 0
+    ? Math.min(...product.variants.map((v) => v.price))
+    : product.price;
+  const effectiveStock = product.variants.length > 0
+    ? product.variants.reduce((sum, v) => sum + v.stock, 0)
+    : product.stock;
+
   await db.transaction(async (tx) => {
     await tx
       .insert(products)
@@ -269,8 +343,8 @@ export async function saveProduct(
         id: product.id,
         name: product.name,
         description: product.description,
-        price: product.price,
-        stock: product.stock,
+        price: effectivePrice,
+        stock: effectiveStock,
         netWeight: product.netWeight,
         packedWeight: product.packedWeight,
         netLength: product.netLength,
@@ -292,8 +366,8 @@ export async function saveProduct(
         set: {
           name: product.name,
           description: product.description,
-          price: product.price,
-          stock: product.stock,
+          price: effectivePrice,
+          stock: effectiveStock,
           netWeight: product.netWeight,
           packedWeight: product.packedWeight,
           netLength: product.netLength,
@@ -326,6 +400,14 @@ export async function saveProduct(
           price: variant.price,
           stock: variant.stock,
           position: i,
+          netWeight: variant.netWeight,
+          packedWeight: variant.packedWeight,
+          netLength: variant.netLength,
+          netWidth: variant.netWidth,
+          netHeight: variant.netHeight,
+          packedLength: variant.packedLength,
+          packedWidth: variant.packedWidth,
+          packedHeight: variant.packedHeight,
         })),
       );
     }
@@ -358,19 +440,31 @@ export async function restoreStock(tx: Tx, productId: string, quantity: number):
     .where(eq(products.id, productId));
 }
 
-/** Versi varian dari {@link decrementStock} — stok dikurangi di baris varian, bukan produk induk. */
-export async function decrementVariantStock(tx: Tx, variantId: number, quantity: number): Promise<boolean> {
+/**
+ * Versi varian dari {@link decrementStock} — stok dikurangi di baris varian,
+ * SEKALIGUS di produk induk (`products.stock` = total semua varian) supaya
+ * badge "stok habis" di katalog & tabel admin selalu akurat tanpa query SUM.
+ */
+export async function decrementVariantStock(
+  tx: Tx,
+  productId: string,
+  variantId: number,
+  quantity: number,
+): Promise<boolean> {
   const result = await tx
     .update(productVariants)
     .set({ stock: sql`${productVariants.stock} - ${quantity}` })
     .where(and(eq(productVariants.id, variantId), gte(productVariants.stock, quantity)));
-  return result[0].affectedRows > 0;
+  if (result[0].affectedRows === 0) return false;
+  await tx.update(products).set({ stock: sql`${products.stock} - ${quantity}` }).where(eq(products.id, productId));
+  return true;
 }
 
 /** Versi varian dari {@link restoreStock}. */
-export async function restoreVariantStock(tx: Tx, variantId: number, quantity: number): Promise<void> {
+export async function restoreVariantStock(tx: Tx, productId: string, variantId: number, quantity: number): Promise<void> {
   await tx
     .update(productVariants)
     .set({ stock: sql`${productVariants.stock} + ${quantity}` })
     .where(eq(productVariants.id, variantId));
+  await tx.update(products).set({ stock: sql`${products.stock} + ${quantity}` }).where(eq(products.id, productId));
 }

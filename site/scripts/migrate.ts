@@ -1,7 +1,7 @@
 import { mkdtempSync, copyFileSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { migrate } from "drizzle-orm/mysql2/migrator";
 import mysql from "mysql2/promise";
@@ -126,6 +126,46 @@ async function fixLegacyImagePaths() {
   if (updated > 0) console.log(`Perbaikan path gambar lama: ${updated} produk diperbaiki.`);
 }
 
+/**
+ * Produk yang punya varian HARUS selalu punya `products.price` = harga varian
+ * termurah dan `products.stock` = total stok semua varian (supaya badge "stok
+ * habis" & harga di katalog/tabel admin akurat tanpa query SUM tiap render).
+ * `saveProduct` (db/catalog.ts) sudah menjaga ini tiap kali admin simpan
+ * produk — fungsi ini cuma jaring pengaman untuk data yang sempat tersimpan
+ * sebelum penjagaan itu ada. Idempotent, aman dipanggil berkali-kali.
+ */
+async function fixVariantStockPriceSync() {
+  const { db } = await import("../db");
+  const { products, productVariants } = await import("../db/schema");
+
+  const variantRows = await db
+    .select({ productId: productVariants.productId, price: productVariants.price, stock: productVariants.stock })
+    .from(productVariants);
+  if (variantRows.length === 0) return;
+
+  const byProduct = new Map<string, { minPrice: number; totalStock: number }>();
+  for (const row of variantRows) {
+    const entry = byProduct.get(row.productId) ?? { minPrice: row.price, totalStock: 0 };
+    entry.minPrice = Math.min(entry.minPrice, row.price);
+    entry.totalStock += row.stock;
+    byProduct.set(row.productId, entry);
+  }
+
+  const productRows = await db
+    .select({ id: products.id, price: products.price, stock: products.stock })
+    .from(products)
+    .where(inArray(products.id, [...byProduct.keys()]));
+
+  let updated = 0;
+  for (const row of productRows) {
+    const expected = byProduct.get(row.id)!;
+    if (row.price === expected.minPrice && row.stock === expected.totalStock) continue;
+    await db.update(products).set({ price: expected.minPrice, stock: expected.totalStock }).where(eq(products.id, row.id));
+    updated += 1;
+  }
+  if (updated > 0) console.log(`Sinkronisasi harga/stok varian: ${updated} produk diperbaiki.`);
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL belum diset.");
@@ -145,6 +185,7 @@ async function main() {
 
   await connection.end();
   await fixLegacyImagePaths();
+  await fixVariantStockPriceSync();
 }
 
 main().catch((error) => {

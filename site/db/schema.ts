@@ -53,6 +53,17 @@ export const productVariants = mysqlTable("product_variants", {
   price: int("price").notNull(),
   stock: int("stock").notNull().default(0),
   position: int("position").notNull().default(0),
+  // Nullable — null berarti pakai berat/dimensi produk induk. Cuma diisi
+  // kalau variannya beda ukuran fisik (mis. Besar vs Kecil), tidak wajib
+  // untuk varian yang cuma beda warna/jenis tapi fisiknya sama.
+  netWeight: int("net_weight"),
+  packedWeight: int("packed_weight"),
+  netLength: int("net_length"),
+  netWidth: int("net_width"),
+  netHeight: int("net_height"),
+  packedLength: int("packed_length"),
+  packedWidth: int("packed_width"),
+  packedHeight: int("packed_height"),
 });
 
 export const catalogMeta = mysqlTable("catalog_meta", {

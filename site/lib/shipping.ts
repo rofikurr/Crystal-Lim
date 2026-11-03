@@ -1,4 +1,4 @@
-import { listProducts } from "../db/catalog";
+import { effectiveDimensions, listProducts } from "../db/catalog";
 import { getSetting, getNumericSetting } from "../db/settings";
 import { calculateDomesticCost, searchDestination, type ShippingOption } from "./rajaongkir";
 
@@ -33,20 +33,23 @@ function isBulkCargoService(option: { service: string; description: string }): b
 }
 
 /** Berat tertagih kurir = MAX(berat aktual, berat volumetrik dari dimensi packing). */
-function chargeableWeightGrams(product: { packedWeight: number; packedLength: number; packedWidth: number; packedHeight: number }): number {
+function chargeableWeightGrams(dimensions: { packedWeight: number; packedLength: number; packedWidth: number; packedHeight: number }): number {
   const volumetricGrams =
-    (product.packedLength * product.packedWidth * product.packedHeight * 1000) / VOLUMETRIC_DIVISOR_CM3_PER_KG;
-  return Math.max(product.packedWeight, volumetricGrams);
+    (dimensions.packedLength * dimensions.packedWidth * dimensions.packedHeight * 1000) / VOLUMETRIC_DIVISOR_CM3_PER_KG;
+  return Math.max(dimensions.packedWeight, volumetricGrams);
 }
 
-async function totalChargeableWeight(items: { productId: string; quantity: number }[]): Promise<number | null> {
+async function totalChargeableWeight(
+  items: { productId: string; quantity: number; variantId?: number | null }[],
+): Promise<number | null> {
   const catalog = await listProducts(true);
   const byId = new Map(catalog.map((p) => [p.id, p]));
   let weightGrams = 0;
   for (const item of items) {
     const product = byId.get(item.productId);
     if (!product) return null; // data tidak konsisten (produk sudah dihapus dll)
-    weightGrams += chargeableWeightGrams(product) * item.quantity;
+    const variant = item.variantId ? product.variants.find((v) => v.id === item.variantId) : null;
+    weightGrams += chargeableWeightGrams(effectiveDimensions(product, variant)) * item.quantity;
   }
   return weightGrams > 0 ? Math.ceil(weightGrams) : null;
 }
@@ -59,7 +62,7 @@ async function totalChargeableWeight(items: { productId: string; quantity: numbe
  */
 export async function getShippingOptions(input: {
   postal: string;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; quantity: number; variantId?: number | null }[];
 }): Promise<ShippingOption[]> {
   if ((await getShippingMode()) === "flat") return [];
 
@@ -102,7 +105,7 @@ export async function getInternationalShippingFee(method: InternationalShippingM
 
 export async function computeShippingFee(input: {
   postal: string;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; quantity: number; variantId?: number | null }[];
   preferredCourier?: string;
   preferredService?: string;
 }): Promise<number> {

@@ -156,7 +156,7 @@ export async function createOrder(input: {
   await db.transaction(async (tx) => {
     for (const item of items) {
       const ok = item.variantId
-        ? await decrementVariantStock(tx, item.variantId, item.quantity)
+        ? await decrementVariantStock(tx, item.productId, item.variantId, item.quantity)
         : await decrementStock(tx, item.productId, item.quantity);
       if (!ok) {
         const label = item.variantId ? `${item.productName} (${item.variantLabel})` : item.productName;
@@ -350,7 +350,7 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
     if (enteringRestorableState) {
       const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
       for (const item of items) {
-        if (item.variantId) await restoreVariantStock(tx, item.variantId, item.quantity);
+        if (item.variantId) await restoreVariantStock(tx, item.productId, item.variantId, item.quantity);
         else await restoreStock(tx, item.productId, item.quantity);
       }
     }

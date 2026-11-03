@@ -31,7 +31,7 @@ function card(p: Product) {
     .filter(c => c.slug !== BEST_SELLER_SLUG)
     .map(c => c.name.toUpperCase())
     .join(" · ");
-  return `<article class="product${outOfStock ? " out-of-stock" : ""}" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-stock="${p.stock}" data-image="${image}">
+  return `<article class="product${outOfStock ? " out-of-stock" : ""}" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-price-max="${p.priceMax}" data-stock="${p.stock}" data-image="${image}">
     <div class="product-media"><a href="${href}"><img src="${image}" alt="${name}" loading="lazy"></a>
       ${isBestSeller ? '<span class="best-seller-badge" data-i18n="product.bestSeller">BEST SELLER</span>' : ""}
       ${outOfStock ? '<span class="out-of-stock-badge" data-i18n="product.outOfStock">STOK HABIS</span>' : ""}

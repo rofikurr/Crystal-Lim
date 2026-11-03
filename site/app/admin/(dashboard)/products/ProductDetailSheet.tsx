@@ -8,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { BEST_SELLER_SLUG, isBestSeller, money, type Product } from "./types";
+import { BEST_SELLER_SLUG, isBestSeller, priceLabel, type Product } from "./types";
 import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProductDetailSheet({
@@ -28,7 +28,7 @@ export default function ProductDetailSheet({
           <>
             <SheetHeader>
               <SheetTitle>{product.name}</SheetTitle>
-              <SheetDescription>{money.format(product.price)}</SheetDescription>
+              <SheetDescription>{priceLabel(product)}</SheetDescription>
             </SheetHeader>
             <div className="flex flex-col gap-4 px-4 pb-4">
               <div className="flex flex-wrap gap-1.5">

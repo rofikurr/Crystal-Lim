@@ -110,7 +110,7 @@
   <div class="cart-drawer" aria-hidden="true"><div class="drawer-backdrop"></div><aside aria-label="Keranjang belanja"><div class="drawer-head"><div><p class="eyebrow">YOUR CART</p><h2 data-i18n="cart.title">Keranjang Belanja</h2></div><button class="drawer-close" aria-label="Tutup keranjang">×</button></div><div class="cart-items"><div class="empty-cart"><span>◇</span><h3 data-i18n="cart.empty">Keranjang masih kosong</h3><p data-i18n="cart.emptyHint">Pilih produk dari koleksi Crystal Lim.</p></div></div><div class="cart-footer" hidden><div class="cart-total"><span data-i18n="cart.subtotal">Subtotal</span><strong>Rp0</strong></div><small data-i18n="cart.shippingNote">Ongkir dihitung setelah alamat diisi.</small><button class="button primary checkout-button" data-i18n="cart.checkout">CHECKOUT</button></div></aside></div>
 
   <section class="checkout-view" aria-hidden="true">
-    <header class="checkout-header"><button class="checkout-back" aria-label="Kembali ke toko">←</button><div class="brand-mini"><img class="checkout-refined-logo" src="assets/crystal-lim-logo-transparent.png" alt="Crystal Lim" width="1254" height="1254"></div><span class="secure">CHECKOUT</span></header>
+    <header class="checkout-header"><button class="checkout-back" aria-label="Kembali ke toko">←</button><div class="brand-mini"><img class="checkout-refined-logo" src="assets/crystal-lim-logo-transparent.png" alt="Crystal Lim" width="1254" height="1254"></div><div class="checkout-header-right"><div class="lang-switch" role="group" aria-label="Language / Bahasa"><button type="button" data-lang="id" data-i18n="lang.id">ID</button><button type="button" data-lang="en" data-i18n="lang.en">EN</button></div><span class="secure">CHECKOUT</span></div></header>
     <div class="checkout-layout">
       <form class="checkout-form">
         <p class="eyebrow" data-i18n="checkout.steps">01 ALAMAT · 02 PENGIRIMAN · 03 PEMBAYARAN</p><h1 data-i18n="checkout.heading">Selangkah lebih dekat.</h1>
@@ -119,7 +119,7 @@
           <label><span data-i18n="checkout.whatsapp">Nomor WhatsApp</span><input name="phone" type="tel" autocomplete="tel" pattern="[+0-9 ()-]{9,20}" maxlength="20" required></label>
           <label class="full"><span data-i18n="checkout.email">Email</span><input name="email" type="email" autocomplete="email" maxlength="120" required></label>
           <label class="full"><span data-i18n="checkout.country">Negara</span><select name="country" id="checkout-country" autocomplete="country-name"></select></label>
-          <label><span data-i18n="checkout.province">Provinsi</span><input name="province" autocomplete="address-level1" maxlength="80" required></label>
+          <label><span><span data-i18n="checkout.province">Provinsi</span><span class="field-optional-hint" data-i18n="checkout.optionalTag" hidden> (opsional)</span></span><input name="province" autocomplete="address-level1" maxlength="80" required></label>
           <label><span data-i18n="checkout.city">Kota / Kabupaten</span><input name="city" autocomplete="address-level2" maxlength="80" required></label>
           <div class="form-grid domestic-only" id="domestic-only-fields">
             <label><span data-i18n="checkout.district">Kecamatan</span><input name="district" autocomplete="address-level3" maxlength="80" required></label>

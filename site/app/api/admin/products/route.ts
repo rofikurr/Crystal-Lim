@@ -49,19 +49,41 @@ export async function POST(request: Request) {
   const categoryIds: number[] = categoryIdsInput.every((id) => Number.isInteger(id))
     ? categoryIdsInput
     : [];
+  const variantWeightKeys = ["netWeight", "packedWeight"] as const;
+  const variantDimKeys = ["netLength", "netWidth", "netHeight", "packedLength", "packedWidth", "packedHeight"] as const;
   const variantsInput = Array.isArray(body.variants) ? body.variants : [];
   const variants = variantsInput.map((v) => {
     const raw = (v ?? {}) as Record<string, unknown>;
+    const overrides = Object.fromEntries(
+      [...variantWeightKeys, ...variantDimKeys].map((key) => [
+        key,
+        raw[key] === undefined || raw[key] === null || raw[key] === "" ? null : Number(raw[key]),
+      ]),
+    ) as Record<(typeof variantWeightKeys)[number] | (typeof variantDimKeys)[number], number | null>;
     return {
       label: typeof raw.label === "string" ? raw.label.trim() : "",
       price: Number(raw.price),
       stock: Number(raw.stock),
+      ...overrides,
     };
   });
-  const variantsInvalid = variants.length > 30 || variants.some((v) =>
-    !v.label || v.label.length > 140 ||
-    !Number.isSafeInteger(v.price) || v.price < 0 || v.price > 1000000000 ||
-    !Number.isSafeInteger(v.stock) || v.stock < 0 || v.stock > 1000000);
+  // Override berat/dimensi per varian OPSIONAL (null = pakai punya produk induk)
+  // — cuma divalidasi kalau diisi, supaya varian warna-saja tidak wajib isi ini.
+  const variantsInvalid = variants.length > 30 || variants.some((v) => {
+    if (!v.label || v.label.length > 140) return true;
+    if (!Number.isSafeInteger(v.price) || v.price < 0 || v.price > 1000000000) return true;
+    if (!Number.isSafeInteger(v.stock) || v.stock < 0 || v.stock > 1000000) return true;
+    for (const key of variantWeightKeys) {
+      const value = v[key];
+      if (value !== null && (!Number.isSafeInteger(value) || value < 1 || value > 50000)) return true;
+    }
+    for (const key of variantDimKeys) {
+      const value = v[key];
+      if (value !== null && (!Number.isSafeInteger(value) || value < 1 || value > 300)) return true;
+    }
+    if (v.netWeight !== null && v.packedWeight !== null && v.packedWeight < v.netWeight) return true;
+    return false;
+  });
   if (!name || name.length > 140 || description.length > 20000 ||
     !Number.isSafeInteger(price) || price < 0 || price > 1000000000 ||
     (stock !== undefined && (!Number.isSafeInteger(stock) || stock < 0 || stock > 1000000)) ||

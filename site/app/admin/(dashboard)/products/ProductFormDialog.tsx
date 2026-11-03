@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Star } from "lucide-react";
+import { ChevronDown, ChevronRight, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { postJson } from "@/lib/api-client";
-import { BEST_SELLER_SLUG, EMPTY_PRODUCT, type Category, type Product, type ProductVariant } from "./types";
+import { BEST_SELLER_SLUG, EMPTY_PRODUCT, money, type Category, type Product, type ProductVariant } from "./types";
 
 function youtubeEmbedUrl(url: string): string | null {
   const match = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([a-zA-Z0-9_-]{6,})/.exec(url);
@@ -48,6 +48,7 @@ export default function ProductFormDialog({
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const dragIndex = useRef<number | null>(null);
+  const [expandedVariants, setExpandedVariants] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -64,6 +65,19 @@ export default function ProductFormDialog({
     setGallery([next.image, ...next.images.filter((url) => url !== next.image)].filter(Boolean));
     setGalleryUrlInput("");
     setVideoUrlInput("");
+    setExpandedVariants(
+      new Set(
+        next.variants
+          .map((v, i) =>
+            [v.netWeight, v.packedWeight, v.netLength, v.netWidth, v.netHeight, v.packedLength, v.packedWidth, v.packedHeight].some(
+              (x) => x !== null,
+            )
+              ? i
+              : -1,
+          )
+          .filter((i) => i >= 0),
+      ),
+    );
   }, [open, product]);
 
   function update<K extends keyof Product>(key: K, value: Product[K]) {
@@ -75,7 +89,18 @@ export default function ProductFormDialog({
   }
 
   function addVariant() {
-    setForm((prev) => ({ ...prev, variants: [...prev.variants, { label: "", price: prev.price, stock: 0 }] }));
+    setForm((prev) => ({
+      ...prev,
+      variants: [
+        ...prev.variants,
+        {
+          label: "", price: prev.price, stock: 0,
+          netWeight: null, packedWeight: null,
+          netLength: null, netWidth: null, netHeight: null,
+          packedLength: null, packedWidth: null, packedHeight: null,
+        },
+      ],
+    }));
   }
 
   function updateVariant(index: number, patch: Partial<ProductVariant>) {
@@ -87,10 +112,33 @@ export default function ProductFormDialog({
 
   function removeVariant(index: number) {
     setForm((prev) => ({ ...prev, variants: prev.variants.filter((_, i) => i !== index) }));
+    setExpandedVariants((prev) => new Set([...prev].filter((i) => i !== index).map((i) => (i > index ? i - 1 : i))));
+  }
+
+  function toggleVariantDimensions(index: number) {
+    setExpandedVariants((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
+  function clearVariantDimensions(index: number) {
+    updateVariant(index, {
+      netWeight: null, packedWeight: null,
+      netLength: null, netWidth: null, netHeight: null,
+      packedLength: null, packedWidth: null, packedHeight: null,
+    });
   }
 
   const bestSellerCategory = categories.find((c) => c.slug === BEST_SELLER_SLUG);
   const isBestSeller = bestSellerCategory ? categoryIds.includes(bestSellerCategory.id) : false;
+  const hasVariants = form.variants.length > 0;
+  const variantStockSum = form.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+  const variantPrices = form.variants.map((v) => Number(v.price) || 0);
+  const variantPriceMin = variantPrices.length ? Math.min(...variantPrices) : 0;
+  const variantPriceMax = variantPrices.length ? Math.max(...variantPrices) : 0;
 
   async function uploadVideoFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -243,27 +291,48 @@ export default function ProductFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="product-price">{t("products.form.price")}</Label>
-              <Input
-                id="product-price"
-                required
-                type="number"
-                min={0}
-                max={1000000000}
-                value={form.price}
-                onChange={(e) => update("price", Number(e.target.value))}
-              />
+              {hasVariants ? (
+                <>
+                  <Input
+                    disabled
+                    value={
+                      variantPriceMin === variantPriceMax
+                        ? money.format(variantPriceMin)
+                        : `${money.format(variantPriceMin)} - ${money.format(variantPriceMax)}`
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">{t("products.form.priceFromVariants")}</p>
+                </>
+              ) : (
+                <Input
+                  id="product-price"
+                  required
+                  type="number"
+                  min={0}
+                  max={1000000000}
+                  value={form.price}
+                  onChange={(e) => update("price", Number(e.target.value))}
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="product-stock">{t("products.table.stock")}</Label>
-              <Input
-                id="product-stock"
-                required
-                type="number"
-                min={0}
-                max={1000000}
-                value={form.stock}
-                onChange={(e) => update("stock", Number(e.target.value))}
-              />
+              {hasVariants ? (
+                <>
+                  <Input disabled value={variantStockSum} />
+                  <p className="text-xs text-muted-foreground">{t("products.form.stockFromVariants")}</p>
+                </>
+              ) : (
+                <Input
+                  id="product-stock"
+                  required
+                  type="number"
+                  min={0}
+                  max={1000000}
+                  value={form.stock}
+                  onChange={(e) => update("stock", Number(e.target.value))}
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="product-net-weight">{t("products.form.netWeight")}</Label>
@@ -525,38 +594,147 @@ export default function ProductFormDialog({
               <p className="text-xs text-muted-foreground">{t("products.form.variantsHint")}</p>
               <div className="flex flex-col gap-2">
                 {form.variants.map((variant, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      aria-label={t("products.form.variantLabelPlaceholder")}
-                      placeholder={t("products.form.variantLabelPlaceholder")}
-                      value={variant.label}
-                      onChange={(e) => updateVariant(index, { label: e.target.value })}
-                      maxLength={140}
-                      className="flex-[2]"
-                    />
-                    <Input
-                      aria-label={t("products.form.variantPricePlaceholder")}
-                      placeholder={t("products.form.variantPricePlaceholder")}
-                      type="number"
-                      min={0}
-                      max={1000000000}
-                      value={variant.price}
-                      onChange={(e) => updateVariant(index, { price: Number(e.target.value) })}
-                      className="flex-1"
-                    />
-                    <Input
-                      aria-label={t("products.form.variantStockPlaceholder")}
-                      placeholder={t("products.form.variantStockPlaceholder")}
-                      type="number"
-                      min={0}
-                      max={1000000}
-                      value={variant.stock}
-                      onChange={(e) => updateVariant(index, { stock: Number(e.target.value) })}
-                      className="flex-1"
-                    />
-                    <Button type="button" variant="outline" size="icon-sm" onClick={() => removeVariant(index)}>
-                      ×
+                  <div key={index} className="rounded-md border border-border p-2">
+                    <div className="grid grid-cols-[2fr_1fr_1fr_auto] items-end gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-normal text-muted-foreground">{t("products.form.variantName")}</Label>
+                        <Input
+                          placeholder={t("products.form.variantLabelPlaceholder")}
+                          value={variant.label}
+                          onChange={(e) => updateVariant(index, { label: e.target.value })}
+                          maxLength={140}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-normal text-muted-foreground">{t("products.form.variantPricePlaceholder")}</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={1000000000}
+                          value={variant.price}
+                          onChange={(e) => updateVariant(index, { price: Number(e.target.value) })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-normal text-muted-foreground">{t("products.form.variantStockPlaceholder")}</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={1000000}
+                          value={variant.stock}
+                          onChange={(e) => updateVariant(index, { stock: Number(e.target.value) })}
+                        />
+                      </div>
+                      <Button type="button" variant="outline" size="icon-sm" onClick={() => removeVariant(index)} aria-label={t("common.delete")}>
+                        ×
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleVariantDimensions(index)}
+                      className="mt-2"
+                    >
+                      {expandedVariants.has(index) ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                      {t("products.form.variantDimensionsToggle")}
                     </Button>
+                    {expandedVariants.has(index) && (
+                      <div className="mt-2 space-y-3 border-t border-border pt-2">
+                        <p className="text-[11px] text-muted-foreground">{t("products.form.variantDimensionsHint")}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-normal text-muted-foreground">{t("products.form.netWeight")}</Label>
+                            <Input
+                              placeholder={String(form.netWeight)}
+                              type="number"
+                              min={1}
+                              max={50000}
+                              value={variant.netWeight ?? ""}
+                              onChange={(e) => updateVariant(index, { netWeight: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs font-normal text-muted-foreground">{t("products.form.packedWeight")}</Label>
+                            <Input
+                              placeholder={String(form.packedWeight)}
+                              type="number"
+                              min={1}
+                              max={50000}
+                              value={variant.packedWeight ?? ""}
+                              onChange={(e) => updateVariant(index, { packedWeight: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-normal text-muted-foreground">{t("products.form.netDimensions")}</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              aria-label={t("products.form.netLength")}
+                              placeholder={String(form.netLength)}
+                              type="number"
+                              min={1}
+                              max={300}
+                              value={variant.netLength ?? ""}
+                              onChange={(e) => updateVariant(index, { netLength: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                            <Input
+                              aria-label={t("products.form.netWidth")}
+                              placeholder={String(form.netWidth)}
+                              type="number"
+                              min={1}
+                              max={300}
+                              value={variant.netWidth ?? ""}
+                              onChange={(e) => updateVariant(index, { netWidth: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                            <Input
+                              aria-label={t("products.form.netHeight")}
+                              placeholder={String(form.netHeight)}
+                              type="number"
+                              min={1}
+                              max={300}
+                              value={variant.netHeight ?? ""}
+                              onChange={(e) => updateVariant(index, { netHeight: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs font-normal text-muted-foreground">{t("products.form.packedDimensions")}</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              aria-label={t("products.form.packedLength")}
+                              placeholder={String(form.packedLength)}
+                              type="number"
+                              min={1}
+                              max={300}
+                              value={variant.packedLength ?? ""}
+                              onChange={(e) => updateVariant(index, { packedLength: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                            <Input
+                              aria-label={t("products.form.packedWidth")}
+                              placeholder={String(form.packedWidth)}
+                              type="number"
+                              min={1}
+                              max={300}
+                              value={variant.packedWidth ?? ""}
+                              onChange={(e) => updateVariant(index, { packedWidth: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                            <Input
+                              aria-label={t("products.form.packedHeight")}
+                              placeholder={String(form.packedHeight)}
+                              type="number"
+                              min={1}
+                              max={300}
+                              value={variant.packedHeight ?? ""}
+                              onChange={(e) => updateVariant(index, { packedHeight: e.target.value === "" ? null : Number(e.target.value) })}
+                            />
+                          </div>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => clearVariantDimensions(index)}>
+                          {t("products.form.variantUseDefault")}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
