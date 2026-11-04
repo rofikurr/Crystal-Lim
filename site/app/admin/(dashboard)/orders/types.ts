@@ -3,6 +3,7 @@ import type { TranslationKey } from "../../../../lib/i18n/translations";
 
 export type OrderStatus = "pending" | "paid" | "shipped" | "completed" | "cancelled" | "expired";
 export type ShippingMethod = "domestic" | "intl_standard" | "intl_express";
+export type PaymentMethod = "qris" | "va" | "ewallet" | "card" | "";
 
 export type OrderItem = {
   productId: string;
@@ -23,6 +24,8 @@ export type Order = {
   notes: string;
   subtotal: number;
   shippingFee: number;
+  paymentMethod: PaymentMethod;
+  paymentFee: number;
   total: number;
   status: OrderStatus;
   xenditInvoiceId: string;
@@ -47,6 +50,13 @@ export const SHIPPING_METHOD_KEYS: Record<ShippingMethod, TranslationKey> = {
   domestic: "orders.shippingMethod.domestic",
   intl_standard: "orders.shippingMethod.intlStandard",
   intl_express: "orders.shippingMethod.intlExpress",
+};
+
+export const PAYMENT_METHOD_KEYS: Record<Exclude<PaymentMethod, "">, TranslationKey> = {
+  qris: "orders.paymentMethod.qris",
+  va: "orders.paymentMethod.va",
+  ewallet: "orders.paymentMethod.ewallet",
+  card: "orders.paymentMethod.card",
 };
 
 export const money = { format: formatRupiah };

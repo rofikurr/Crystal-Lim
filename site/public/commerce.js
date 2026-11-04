@@ -202,6 +202,33 @@
     qsa('input[name="international-shipping-option"]',intlOptionsEl).forEach((input,i)=>input.addEventListener('change',()=>{selectedInternational=options[i];updateShippingTotal();}));
     selectedInternational=options[0];
   }
+  // --- Metode pembayaran & biaya admin ---
+  // Tarif publik umum Xendit (perkiraan) — HARUS sinkron dengan FEE_RULES di
+  // lib/payment-fees.ts. Di sini cuma untuk preview sebelum submit; server
+  // yang menghitung ulang & jadi acuan final nominal yang ditagih.
+  const PAYMENT_METHODS=[
+    {key:'qris',labelKey:'checkout.paymentQris',percent:0.007,flat:0},
+    {key:'va',labelKey:'checkout.paymentVa',percent:0,flat:4000},
+    {key:'ewallet',labelKey:'checkout.paymentEwallet',percent:0.02,flat:0},
+    {key:'card',labelKey:'checkout.paymentCard',percent:0.029,flat:2000},
+  ];
+  const paymentOptionsEl=qs('#payment-method-options');
+  let selectedPaymentMethod=PAYMENT_METHODS[0];
+  function paymentFeeFor(method,baseAmount){ return Math.ceil(baseAmount*method.percent+method.flat); }
+  function currentShippingFee(){
+    return isInternational()
+      ? (selectedInternational?.cost||0)
+      : (shippingMode==='auto' ? (selectedShipping?.cost ?? (window.crystalShipping?.flatFee||0)) : (window.crystalShipping?.flatFee||0));
+  }
+  function renderPaymentOptions(){
+    const base=cartSubtotal()+currentShippingFee();
+    paymentOptionsEl.innerHTML=PAYMENT_METHODS.map(m=>`<label class="shipping-option">
+      <input type="radio" name="payment-method-option" value="${m.key}"${m.key===selectedPaymentMethod.key?' checked':''}>
+      <span><b>${t(m.labelKey)}</b></span>
+      <strong>+${rupiah.format(paymentFeeFor(m,base))}</strong>
+    </label>`).join('');
+    qsa('input[name="payment-method-option"]',paymentOptionsEl).forEach((input,i)=>input.addEventListener('change',()=>{selectedPaymentMethod=PAYMENT_METHODS[i];updateShippingTotal();}));
+  }
   const provinceInput=form.elements.province;
   const provinceOptionalHint=qs('.field-optional-hint',provinceInput?.closest('label'));
   function applyDestinationMode(){
@@ -227,11 +254,12 @@
   countrySelect?.addEventListener('change',applyDestinationMode);
 
   function updateShippingTotal() {
-    const fee=isInternational()
-      ? (selectedInternational?.cost||0)
-      : (shippingMode==='auto' ? (selectedShipping?.cost ?? (window.crystalShipping?.flatFee||0)) : (window.crystalShipping?.flatFee||0));
+    const fee=currentShippingFee();
     qs('#shipping-total').textContent=rupiah.format(fee);
-    qs('.summary-total').textContent=rupiah.format(cartSubtotal()+fee);
+    renderPaymentOptions();
+    const paymentFee=paymentFeeFor(selectedPaymentMethod,cartSubtotal()+fee);
+    qs('#payment-fee-total').textContent=rupiah.format(paymentFee);
+    qs('.summary-total').textContent=rupiah.format(cartSubtotal()+fee+paymentFee);
   }
   applyDestinationMode();
   window.addEventListener('cart:changed',()=>{
@@ -278,6 +306,7 @@
     event.preventDefault();if(paying||!form.reportValidity()||!cart.length)return;
     paying=true;payButton.disabled=true;payStatus.textContent=t('checkout.preparingPayment');
     const customer=Object.fromEntries(new FormData(form));
+    customer.paymentMethod=selectedPaymentMethod.key;
     if(isInternational()){ if(selectedInternational) customer.shippingMethod=selectedInternational.method; }
     else if(selectedShipping){customer.shippingCourier=selectedShipping.courier;customer.shippingService=selectedShipping.service;}
     qsa('input,textarea,button',form).forEach(el=>el.disabled=true);

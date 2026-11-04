@@ -3,6 +3,7 @@ import { createOrder, setOrderInvoice, CheckoutError, type ShippingMethod } from
 import { createInvoice, XenditError } from "../../../lib/xendit";
 import { computeShippingFee, getInternationalShippingFee, type InternationalShippingMethod } from "../../../lib/shipping";
 import { isValidEmail, isValidInternationalPostalCode, isValidPostalCode } from "../../../lib/validation";
+import { isPaymentMethod, xenditChannelsFor } from "../../../lib/payment-fees";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
   const address = str(customer.address, 400);
   const notes = typeof customer.notes === "string" ? customer.notes.trim().slice(0, 200) : "";
   const items = Array.isArray(body.items) ? body.items : [];
+  const paymentMethod = customer.paymentMethod;
 
   // Negara kosong/"Indonesia" = alamat domestik (jalur lama: RajaOngkir/flat,
   // field administratif lengkap). Negara lain = alamat internasional (ongkir
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
   const isInternational = country !== "" && country.toLowerCase() !== "indonesia";
 
   if (
-    !name || !phone || !email || !city || !address || !isValidEmail(email) ||
+    !name || !phone || !email || !city || !address || !isValidEmail(email) || !isPaymentMethod(paymentMethod) ||
     items.length === 0 || items.length > 20 ||
     items.some((item) => typeof item.id !== "string" || !Number.isInteger(item.quantity) ||
       (item.variantId !== undefined && item.variantId !== null && !Number.isInteger(item.variantId)))
@@ -108,6 +110,7 @@ export async function POST(request: Request) {
       items: items.map((item) => ({ productId: item.id, quantity: item.quantity, variantId: item.variantId ?? null })),
       shippingFee,
       shippingMethod,
+      paymentMethod,
     });
 
     const origin = new URL(request.url).origin;
@@ -125,6 +128,12 @@ export async function POST(request: Request) {
         })),
         ...(order.shippingFee > 0 ? [{ name: "Ongkos kirim", quantity: 1, price: order.shippingFee }] : []),
       ],
+      // Biaya admin Xendit ditanggung pembeli — ditambahkan ke `amount` sejak
+      // dihitung di createOrder, `fees` di sini cuma rincian tampilan supaya
+      // pembeli lihat kenapa totalnya lebih dari subtotal+ongkir. Pembayaran
+      // dibatasi ke channel yang fee-nya cocok dengan yang sudah dihitung.
+      fees: order.paymentFee > 0 ? [{ type: "Biaya Admin", value: order.paymentFee }] : [],
+      paymentMethods: xenditChannelsFor(paymentMethod),
       successUrl: `${origin}/?order=${order.id}&payment=success`,
       failureUrl: `${origin}/?order=${order.id}&payment=failed`,
     });

@@ -14,7 +14,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { patchJson } from "@/lib/api-client";
-import { money, SHIPPING_METHOD_KEYS, STATUS_KEYS, type Order } from "./types";
+import { money, PAYMENT_METHOD_KEYS, SHIPPING_METHOD_KEYS, STATUS_KEYS, type Order } from "./types";
 import { useTranslation } from "@/lib/i18n/context";
 
 export default function OrderDetailSheet({
@@ -65,6 +65,9 @@ export default function OrderDetailSheet({
                 {order.shippingMethod !== "domestic" && (
                   <Badge variant="outline" className="w-fit">{t(SHIPPING_METHOD_KEYS[order.shippingMethod])}</Badge>
                 )}
+                {order.paymentMethod && (
+                  <Badge variant="outline" className="w-fit">{t(PAYMENT_METHOD_KEYS[order.paymentMethod])}</Badge>
+                )}
               </div>
               <div>
                 <p className="text-sm font-semibold">{t("orders.detail.contact")}</p>
@@ -113,6 +116,8 @@ export default function OrderDetailSheet({
                 <dd className="text-right font-medium">{money.format(order.subtotal)}</dd>
                 <dt className="text-muted-foreground">{t("common.shippingFee")}</dt>
                 <dd className="text-right font-medium">{money.format(order.shippingFee)}</dd>
+                <dt className="text-muted-foreground">{t("orders.detail.paymentFee")}</dt>
+                <dd className="text-right font-medium">{money.format(order.paymentFee)}</dd>
                 <dt className="text-muted-foreground">{t("common.total")}</dt>
                 <dd className="text-right font-semibold">{money.format(order.total)}</dd>
               </dl>

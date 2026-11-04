@@ -9,6 +9,7 @@ import {
   restoreVariantStock,
 } from "./catalog";
 import { nowForDb } from "../lib/db-time";
+import { calculatePaymentFee, type PaymentMethod } from "../lib/payment-fees";
 
 export type OrderStatus = (typeof orders.$inferSelect)["status"];
 export type ShippingMethod = (typeof orders.$inferSelect)["shippingMethod"];
@@ -32,6 +33,8 @@ export type Order = {
   notes: string;
   subtotal: number;
   shippingFee: number;
+  paymentMethod: string;
+  paymentFee: number;
   total: number;
   status: OrderStatus;
   xenditInvoiceId: string;
@@ -124,6 +127,7 @@ export async function createOrder(input: {
   items: { productId: string; quantity: number; variantId?: number | null }[];
   shippingFee: number;
   shippingMethod?: ShippingMethod;
+  paymentMethod: PaymentMethod;
 }): Promise<Order> {
   if (input.items.length === 0) throw new CheckoutError("Keranjang kosong.");
   const catalog = await listProducts();
@@ -149,7 +153,8 @@ export async function createOrder(input: {
   }
   const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const shippingFee = input.shippingFee;
-  const total = subtotal + shippingFee;
+  const paymentFee = calculatePaymentFee(input.paymentMethod, subtotal + shippingFee);
+  const total = subtotal + shippingFee + paymentFee;
   const now = nowForDb();
   const id = `pesanan-${crypto.randomUUID()}`;
 
@@ -172,6 +177,8 @@ export async function createOrder(input: {
       notes: input.notes,
       subtotal,
       shippingFee,
+      paymentMethod: input.paymentMethod,
+      paymentFee,
       total,
       status: "pending",
       shippingMethod: input.shippingMethod ?? "domestic",
@@ -201,6 +208,8 @@ export async function createOrder(input: {
     notes: input.notes,
     subtotal,
     shippingFee,
+    paymentMethod: input.paymentMethod,
+    paymentFee,
     total,
     status: "pending",
     xenditInvoiceId: "",

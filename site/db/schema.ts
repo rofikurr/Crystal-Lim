@@ -151,6 +151,10 @@ export const orders = mysqlTable(
     notes: varchar("notes", { length: 200 }).notNull().default(""),
     subtotal: int("subtotal").notNull(),
     shippingFee: int("shipping_fee").notNull(),
+    // Biaya admin Xendit sesuai metode pembayaran yang dipilih pembeli —
+    // ditanggung pembeli (ditambahkan ke total), bukan dipotong dari toko.
+    paymentMethod: varchar("payment_method", { length: 20 }).notNull().default(""),
+    paymentFee: int("payment_fee").notNull().default(0),
     total: int("total").notNull(),
     status: mysqlEnum("status", [
       "pending",

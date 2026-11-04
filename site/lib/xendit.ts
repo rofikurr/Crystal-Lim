@@ -21,6 +21,8 @@ export async function createInvoice(input: {
   items: { name: string; quantity: number; price: number }[];
   successUrl: string;
   failureUrl: string;
+  paymentMethods?: string[];
+  fees?: { type: string; value: number }[];
 }): Promise<{ invoiceId: string; invoiceUrl: string }> {
   const secretKey = process.env.XENDIT_SECRET_KEY;
   if (!secretKey) throw new XenditError("XENDIT_SECRET_KEY belum diset.");
@@ -48,6 +50,10 @@ export async function createInvoice(input: {
       })),
       success_redirect_url: input.successUrl,
       failure_redirect_url: input.failureUrl,
+      ...(input.paymentMethods && input.paymentMethods.length > 0
+        ? { payment_methods: input.paymentMethods }
+        : {}),
+      ...(input.fees && input.fees.length > 0 ? { fees: input.fees } : {}),
     }),
   });
   const data = await response.json();

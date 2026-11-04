@@ -143,7 +143,8 @@
           </div>
         </fieldset>
         <fieldset><legend data-i18n="checkout.paymentLegend">03 / Pembayaran</legend>
-          <div class="payment-info"><b data-i18n="checkout.paymentInfoTitle">Xendit · pembayaran aman</b><p data-i18n="checkout.paymentInfoBody">Pilihan metode (Virtual Account, e-wallet, QRIS, kartu, dan lainnya) akan muncul di halaman pembayaran Xendit setelah klik lanjut.</p></div>
+          <p class="shipping-help" data-i18n="checkout.paymentMethodHelp">Pilih metode pembayaran. Biaya admin Xendit mengikuti metode yang dipilih dan ditanggung pembeli, bukan toko.</p>
+          <div id="payment-method-options"></div>
         </fieldset>
         <button class="button primary place-order" type="submit"><span data-i18n="checkout.submit">Lanjut ke pembayaran</span> ↗</button>
         <p id="payment-status" role="status"></p>
@@ -151,6 +152,7 @@
       <aside class="order-summary"><h2 data-i18n="checkout.summary">Ringkasan pesanan</h2><div class="summary-items"></div>
         <div class="summary-line"><span data-i18n="checkout.subtotal">Subtotal</span><strong class="summary-subtotal">Rp0</strong></div>
         <div class="summary-line"><span data-i18n="checkout.shipping">Ongkir</span><strong id="shipping-total">Rp0</strong></div>
+        <div class="summary-line"><span data-i18n="checkout.paymentFee">Biaya admin</span><strong id="payment-fee-total">Rp0</strong></div>
         <div class="summary-line total"><span data-i18n="checkout.total">Total</span><strong class="summary-total">Rp0</strong></div>
       </aside>
     </div>
