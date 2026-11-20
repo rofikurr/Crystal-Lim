@@ -335,44 +335,8 @@
     finally{clearTimeout(timeout);paying=false;qsa('input,textarea,button',form).forEach(el=>el.disabled=false);payButton.disabled=false;}
   });
 
-  // --- Modal status pembayaran: stepper (Dibuat -> Pembayaran -> Diproses ->
-  // Selesai) + menunggu / diproses / selesai / gagal. Barang fisik, jadi
-  // "Diproses" dicapai begitu lunas (toko masih menyiapkan/mengirim barang);
-  // "Selesai" baru aktif kalau admin sudah tandai pesanan selesai — status itu
-  // dicek lewat halaman Pesanan Saya, bukan ditunggu live di modal ini.
+  // --- Modal status pembayaran: menunggu -> receipt / gagal ---
   const PAYMENT_METHOD_LABELS={qris:'checkout.paymentQris',va:'checkout.paymentVa',ewallet:'checkout.paymentEwallet',card:'checkout.paymentCard'};
-  const STEP_CONFIG={
-    pending:{doneUpTo:0,current:1,failedAt:-1},
-    processing:{doneUpTo:1,current:2,failedAt:-1},
-    completed:{doneUpTo:3,current:-1,failedAt:-1},
-    failed:{doneUpTo:0,current:-1,failedAt:1},
-  };
-  function stepsHtml(state){
-    const labels=[t('payment.stepCreated'),t('payment.stepPayment'),t('payment.stepProcessing'),t('payment.stepCompleted')];
-    const cfg=STEP_CONFIG[state];
-    return `<ol class="payment-steps">${labels.map((label,i)=>{
-      let cls='';
-      if(i===cfg.failedAt)cls='is-failed';
-      else if(i<=cfg.doneUpTo)cls='is-done';
-      else if(i===cfg.current)cls='is-current';
-      const dot=cls==='is-done'?'✓':cls==='is-failed'?'!':String(i+1);
-      return `<li class="payment-step ${cls}"><span class="payment-step-dot">${dot}</span><span class="payment-step-label">${esc(label)}</span></li>`;
-    }).join('')}</ol>`;
-  }
-  function orderDetailsHtml(order){
-    const itemsHtml=order.items.map(i=>`<li><span>${esc(i.productName)}${i.variantLabel?` (${esc(i.variantLabel)})`:''} × ${i.quantity}</span><strong>${rupiah.format(i.unitPrice*i.quantity)}</strong></li>`).join('');
-    const methodKey=PAYMENT_METHOD_LABELS[order.paymentMethod];
-    return `<div class="payment-receipt">
-      <p class="payment-receipt-row"><span>${esc(t('payment.orderIdLabel'))}</span><strong>${esc(order.id)}</strong></p>
-      <p class="payment-receipt-row"><span>${esc(t('payment.date'))}</span><strong>${esc(order.createdAt)}</strong></p>
-      <p class="payment-receipt-row"><span>${esc(t('payment.paymentMethod'))}</span><strong>${methodKey?esc(t(methodKey)):esc(order.paymentMethod)}</strong></p>
-      <ul class="payment-receipt-items">${itemsHtml}</ul>
-      <p class="payment-receipt-row"><span>${esc(t('checkout.subtotal'))}</span><strong>${rupiah.format(order.subtotal)}</strong></p>
-      <p class="payment-receipt-row"><span>${esc(t('checkout.shipping'))}</span><strong>${rupiah.format(order.shippingFee)}</strong></p>
-      <p class="payment-receipt-row"><span>${esc(t('checkout.paymentFee'))}</span><strong>${rupiah.format(order.paymentFee)}</strong></p>
-      <p class="payment-receipt-row payment-receipt-total"><span>${esc(t('checkout.total'))}</span><strong>${rupiah.format(order.total)}</strong></p>
-    </div>`;
-  }
   const paymentModal=document.createElement('div');
   paymentModal.className='payment-modal';paymentModal.hidden=true;
   paymentModal.innerHTML=`<div class="payment-modal-backdrop"></div><div class="payment-modal-card" role="dialog" aria-modal="true"><button type="button" class="payment-modal-close" aria-label="${esc(t('payment.close'))}">×</button><div class="payment-modal-body"></div></div>`;
@@ -388,7 +352,7 @@
   qs('.payment-modal-close',paymentModal).addEventListener('click',closePaymentModal);
   function renderPaymentWaiting(orderId,invoiceUrl,popupBlocked){
     paymentModalBody.innerHTML=`
-      ${stepsHtml('pending')}
+      <p class="payment-modal-icon payment-modal-icon-wait" aria-hidden="true"></p>
       <h2>${esc(t('payment.waitingTitle'))}</h2>
       <p class="payment-modal-note">${esc(t('payment.waitingBody'))}</p>
       ${popupBlocked?`<p class="payment-modal-warning">${esc(t('payment.popupBlockedBody'))}</p>`:''}
@@ -399,30 +363,31 @@
     `;
     qs('.payment-modal-check',paymentModalBody).addEventListener('click',()=>pollOrderStatus(orderId,true));
   }
-  function renderPaymentProcessing(order){
+  function renderPaymentReceipt(order){
     clearInterval(paymentPollTimer);paymentPollTimer=null;
+    const itemsHtml=order.items.map(i=>`<li><span>${esc(i.productName)}${i.variantLabel?` (${esc(i.variantLabel)})`:''} × ${i.quantity}</span><strong>${rupiah.format(i.unitPrice*i.quantity)}</strong></li>`).join('');
+    const methodKey=PAYMENT_METHOD_LABELS[order.paymentMethod];
     paymentModalBody.innerHTML=`
-      ${stepsHtml('processing')}
-      <h2>${esc(t('payment.processingTitle'))}</h2>
-      <p class="payment-modal-note">${esc(t('payment.processingBody'))}</p>
-      ${orderDetailsHtml(order)}
-      <a class="button primary" href="/user/dashboard">${esc(t('payment.viewOrders'))}</a>
-    `;
-  }
-  function renderPaymentCompleted(order){
-    clearInterval(paymentPollTimer);paymentPollTimer=null;
-    paymentModalBody.innerHTML=`
-      ${stepsHtml('completed')}
-      <h2>${esc(t('payment.completedTitle'))}</h2>
-      <p class="payment-modal-note">${esc(t('payment.completedBody'))}</p>
-      ${orderDetailsHtml(order)}
+      <p class="payment-modal-icon payment-modal-icon-success" aria-hidden="true">✓</p>
+      <h2>${esc(t('payment.successTitle'))}</h2>
+      <p class="payment-modal-note">${esc(t('payment.successBody'))}</p>
+      <div class="payment-receipt">
+        <p class="payment-receipt-row"><span>${esc(t('payment.orderIdLabel'))}</span><strong>${esc(order.id)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('payment.date'))}</span><strong>${esc(order.createdAt)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('payment.paymentMethod'))}</span><strong>${methodKey?esc(t(methodKey)):esc(order.paymentMethod)}</strong></p>
+        <ul class="payment-receipt-items">${itemsHtml}</ul>
+        <p class="payment-receipt-row"><span>${esc(t('checkout.subtotal'))}</span><strong>${rupiah.format(order.subtotal)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('checkout.shipping'))}</span><strong>${rupiah.format(order.shippingFee)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('checkout.paymentFee'))}</span><strong>${rupiah.format(order.paymentFee)}</strong></p>
+        <p class="payment-receipt-row payment-receipt-total"><span>${esc(t('checkout.total'))}</span><strong>${rupiah.format(order.total)}</strong></p>
+      </div>
       <a class="button primary" href="/user/dashboard">${esc(t('payment.viewOrders'))}</a>
     `;
   }
   function renderPaymentFailed(){
     clearInterval(paymentPollTimer);paymentPollTimer=null;
     paymentModalBody.innerHTML=`
-      ${stepsHtml('failed')}
+      <p class="payment-modal-icon payment-modal-icon-failed" aria-hidden="true">!</p>
       <h2>${esc(t('payment.failedTitle'))}</h2>
       <p class="payment-modal-note">${esc(t('payment.failedBody'))}</p>
       <button type="button" class="button primary payment-modal-retry">${esc(t('payment.retry'))}</button>
@@ -439,8 +404,7 @@
       const response=await fetch(`/api/orders/${encodeURIComponent(orderId)}`);
       if(!response.ok){if(manual&&noteEl)noteEl.textContent=t('payment.loadError');return;}
       const order=await response.json();
-      if(['paid','shipped'].includes(order.status)){renderPaymentProcessing(order);return;}
-      if(order.status==='completed'){renderPaymentCompleted(order);return;}
+      if(['paid','shipped','completed'].includes(order.status)){renderPaymentReceipt(order);return;}
       if(['expired','cancelled'].includes(order.status)){renderPaymentFailed();return;}
       if(manual&&noteEl)noteEl.textContent=t('payment.stillPending');
     }catch{if(manual&&noteEl)noteEl.textContent=t('payment.loadError');}

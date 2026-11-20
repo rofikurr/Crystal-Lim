@@ -131,19 +131,14 @@ body,.site-header,.compact-footer,.checkout-header,.checkout-view,
 .payment-modal-backdrop{position:absolute;inset:0;background:oklch(15% .03 315 / .55)}
 .payment-modal-card{position:relative;width:min(440px,100%);max-height:90vh;overflow:auto;background:var(--white);padding:36px 28px;text-align:center;box-shadow:var(--shadow)}
 .payment-modal-close{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--muted)}
-.payment-modal-body h2{font-size:20px;margin:0 0 8px;text-align:center}
-.payment-modal-note{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 16px;text-align:center}
-.payment-modal-warning{font-size:12px;color:var(--berry);margin:0 0 12px;text-align:center}
-.payment-steps{display:flex;justify-content:space-between;list-style:none;padding:0;margin:4px 0 24px}
-.payment-step{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;font-size:10px;color:var(--muted)}
-.payment-step:not(:last-child)::after{content:'';position:absolute;top:11px;left:calc(50% + 15px);right:calc(-50% + 15px);height:2px;background:var(--line)}
-.payment-step.is-done:not(:last-child)::after{background:var(--plum)}
-.payment-step-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);z-index:1}
-.payment-step.is-done .payment-step-dot{background:var(--plum);border-color:var(--plum);color:var(--white)}
-.payment-step.is-current .payment-step-dot{border-color:var(--plum);color:var(--plum)}
-.payment-step.is-failed .payment-step-dot{background:var(--berry);border-color:var(--berry);color:var(--white)}
-.payment-step-label{line-height:1.3}
-.payment-step.is-done .payment-step-label,.payment-step.is-current .payment-step-label{color:var(--ink);font-weight:600}
+.payment-modal-body h2{font-size:20px;margin:14px 0 8px}
+.payment-modal-note{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 16px}
+.payment-modal-warning{font-size:12px;color:var(--berry);margin:0 0 12px}
+.payment-modal-icon{width:52px;height:52px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px}
+.payment-modal-icon-success{background:oklch(90% .09 150);color:oklch(40% .12 150)}
+.payment-modal-icon-failed{background:oklch(90% .08 25);color:var(--berry)}
+.payment-modal-icon-wait{border:3px solid var(--line);border-top-color:var(--plum);animation:payment-spin 1s linear infinite}
+@keyframes payment-spin{to{transform:rotate(360deg)}}
 .payment-modal .button{display:inline-flex;justify-content:center;width:100%;margin-bottom:10px;min-height:46px;align-items:center}
 .payment-modal-check{width:100%;min-height:44px;border:1px solid var(--line);background:transparent;cursor:pointer;margin-bottom:10px}
 .payment-modal-pending-note{font-size:12px;color:var(--muted);min-height:16px;margin:0 0 6px}
