@@ -117,6 +117,10 @@ function closeDrawer() {
 
 function openCheckout() {
   if (!cart.length) return;
+  if (!window.crystalUser?.loggedIn) {
+    location.href = `/login?reason=checkout&return_to=${encodeURIComponent('/?checkout=open')}`;
+    return;
+  }
   checkoutOpener = drawer.classList.contains('open') ? drawerOpener : document.activeElement;
   closeDrawer();
   checkout.classList.add('open');
@@ -361,11 +365,20 @@ refreshCatalog();
 
 const paymentParams = new URLSearchParams(location.search);
 if (paymentParams.has('payment')) {
+  history.replaceState(null, '', location.pathname);
+  // Tab ini hasil window.open() dari tab asal (modal status pembayaran ada
+  // di sana) — begitu Xendit redirect balik ke sini, tutup saja tabnya.
+  // Kalau browser menolak (bukan tab hasil script, atau noopener), banner
+  // di bawah jadi fallback supaya pembeli tetap lihat statusnya.
+  if (window.opener) window.close();
   const success = paymentParams.get('payment') === 'success';
   const banner = document.createElement('div');
   banner.className = 'announcement';
   banner.setAttribute('role', 'status');
   banner.innerHTML = `<strong>${success ? t('announcement.paidTitle') : t('announcement.unpaidTitle')}</strong><span>${success ? t('announcement.paidBody') : t('announcement.unpaidBody')}</span>`;
   qs('.announcement').after(banner);
+}
+if (paymentParams.get('checkout') === 'open') {
   history.replaceState(null, '', location.pathname);
+  if (cart.length) openCheckout();
 }

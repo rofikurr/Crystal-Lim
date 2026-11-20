@@ -169,6 +169,10 @@
     }));
   }
   const form=qs('.checkout-form'), payStatus=qs('#payment-status'), payButton=qs('.place-order');
+  if (window.crystalUser?.loggedIn && form.elements.email) {
+    form.elements.email.value = window.crystalUser.email || '';
+    form.elements.email.readOnly = true;
+  }
   const quoteButton=qs('#quote-shipping'), shippingStatus=qs('#shipping-status'), shippingOptionsEl=qs('#shipping-options');
   const shippingMode=window.crystalShipping?.mode==='flat' ? 'flat' : 'auto';
   let paying=false, paymentController=null, quoting=false, selectedShipping=null, selectedInternational=null;
@@ -310,12 +314,110 @@
     if(isInternational()){ if(selectedInternational) customer.shippingMethod=selectedInternational.method; }
     else if(selectedShipping){customer.shippingCourier=selectedShipping.courier;customer.shippingService=selectedShipping.service;}
     qsa('input,textarea,button',form).forEach(el=>el.disabled=true);
+    // Buka tab kosong sekarang juga (masih dalam gesture klik submit) supaya
+    // tidak diblokir popup-blocker — baru diarahkan ke invoice setelah
+    // /api/checkout selesai (await membuat jeda, window.open sesudahnya
+    // biasanya diblokir browser).
+    const paymentWindow=window.open('about:blank','_blank');
     paymentController=new AbortController();const timeout=setTimeout(()=>paymentController.abort(),25000);
     try{
       const data=await api('/api/checkout',{customer,items:items()},paymentController.signal);
       const url=new URL(data.redirectUrl);if(url.protocol!=='https:'||!/^checkout(-staging)?\.xendit\.co$/.test(url.hostname))throw Error(t('checkout.invalidPaymentUrl'));
-      location.assign(url.href);
-    }catch(error){payStatus.textContent=error.name==='AbortError'?t('checkout.timeout'):error.message;}
+      cart.length=0;renderCart();
+      const popupBlocked=!paymentWindow||paymentWindow.closed;
+      if(!popupBlocked) paymentWindow.location.href=url.href;
+      closeCheckout();
+      openPaymentModal(data.orderId,url.href,popupBlocked);
+    }catch(error){
+      paymentWindow?.close();
+      payStatus.textContent=error.name==='AbortError'?t('checkout.timeout'):error.message;
+    }
     finally{clearTimeout(timeout);paying=false;qsa('input,textarea,button',form).forEach(el=>el.disabled=false);payButton.disabled=false;}
   });
+
+  // --- Modal status pembayaran: menunggu -> receipt / gagal ---
+  const PAYMENT_METHOD_LABELS={qris:'checkout.paymentQris',va:'checkout.paymentVa',ewallet:'checkout.paymentEwallet',card:'checkout.paymentCard'};
+  const paymentModal=document.createElement('div');
+  paymentModal.className='payment-modal';paymentModal.hidden=true;
+  paymentModal.innerHTML=`<div class="payment-modal-backdrop"></div><div class="payment-modal-card" role="dialog" aria-modal="true"><button type="button" class="payment-modal-close" aria-label="${esc(t('payment.close'))}">×</button><div class="payment-modal-body"></div></div>`;
+  document.body.append(paymentModal);
+  const paymentModalBody=qs('.payment-modal-body',paymentModal);
+  let paymentPollTimer=null,paymentPollAttempts=0;
+  const PAYMENT_POLL_INTERVAL=4000,PAYMENT_POLL_MAX_ATTEMPTS=225;
+  function closePaymentModal(){
+    clearInterval(paymentPollTimer);paymentPollTimer=null;
+    paymentModal.hidden=true;document.body.classList.remove('no-scroll');
+  }
+  qs('.payment-modal-backdrop',paymentModal).addEventListener('click',closePaymentModal);
+  qs('.payment-modal-close',paymentModal).addEventListener('click',closePaymentModal);
+  function renderPaymentWaiting(orderId,invoiceUrl,popupBlocked){
+    paymentModalBody.innerHTML=`
+      <p class="payment-modal-icon payment-modal-icon-wait" aria-hidden="true"></p>
+      <h2>${esc(t('payment.waitingTitle'))}</h2>
+      <p class="payment-modal-note">${esc(t('payment.waitingBody'))}</p>
+      ${popupBlocked?`<p class="payment-modal-warning">${esc(t('payment.popupBlockedBody'))}</p>`:''}
+      <a class="button primary payment-modal-open" href="${esc(invoiceUrl)}" target="_blank" rel="noopener">${esc(t('payment.openPaymentPage'))}</a>
+      <button type="button" class="payment-modal-check">${esc(t('payment.checkNow'))}</button>
+      <p class="payment-modal-pending-note" aria-live="polite"></p>
+      <p class="payment-modal-orderid">${esc(t('payment.orderIdLabel'))}: ${esc(orderId)}</p>
+    `;
+    qs('.payment-modal-check',paymentModalBody).addEventListener('click',()=>pollOrderStatus(orderId,true));
+  }
+  function renderPaymentReceipt(order){
+    clearInterval(paymentPollTimer);paymentPollTimer=null;
+    const itemsHtml=order.items.map(i=>`<li><span>${esc(i.productName)}${i.variantLabel?` (${esc(i.variantLabel)})`:''} × ${i.quantity}</span><strong>${rupiah.format(i.unitPrice*i.quantity)}</strong></li>`).join('');
+    const methodKey=PAYMENT_METHOD_LABELS[order.paymentMethod];
+    paymentModalBody.innerHTML=`
+      <p class="payment-modal-icon payment-modal-icon-success" aria-hidden="true">✓</p>
+      <h2>${esc(t('payment.successTitle'))}</h2>
+      <p class="payment-modal-note">${esc(t('payment.successBody'))}</p>
+      <div class="payment-receipt">
+        <p class="payment-receipt-row"><span>${esc(t('payment.orderIdLabel'))}</span><strong>${esc(order.id)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('payment.date'))}</span><strong>${esc(order.createdAt)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('payment.paymentMethod'))}</span><strong>${methodKey?esc(t(methodKey)):esc(order.paymentMethod)}</strong></p>
+        <ul class="payment-receipt-items">${itemsHtml}</ul>
+        <p class="payment-receipt-row"><span>${esc(t('checkout.subtotal'))}</span><strong>${rupiah.format(order.subtotal)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('checkout.shipping'))}</span><strong>${rupiah.format(order.shippingFee)}</strong></p>
+        <p class="payment-receipt-row"><span>${esc(t('checkout.paymentFee'))}</span><strong>${rupiah.format(order.paymentFee)}</strong></p>
+        <p class="payment-receipt-row payment-receipt-total"><span>${esc(t('checkout.total'))}</span><strong>${rupiah.format(order.total)}</strong></p>
+      </div>
+      <a class="button primary" href="/user/dashboard">${esc(t('payment.viewOrders'))}</a>
+    `;
+  }
+  function renderPaymentFailed(){
+    clearInterval(paymentPollTimer);paymentPollTimer=null;
+    paymentModalBody.innerHTML=`
+      <p class="payment-modal-icon payment-modal-icon-failed" aria-hidden="true">!</p>
+      <h2>${esc(t('payment.failedTitle'))}</h2>
+      <p class="payment-modal-note">${esc(t('payment.failedBody'))}</p>
+      <button type="button" class="button primary payment-modal-retry">${esc(t('payment.retry'))}</button>
+    `;
+    // Stok pesanan yang expired/cancelled sudah dikembalikan di server, jadi
+    // keranjang sudah kosong (dikosongkan saat order dibuat) — cukup tutup
+    // modal dan arahkan balik ke koleksi untuk belanja ulang.
+    qs('.payment-modal-retry',paymentModalBody).addEventListener('click',()=>{closePaymentModal();document.getElementById('pilihan')?.scrollIntoView({behavior:'smooth'});});
+  }
+  async function pollOrderStatus(orderId,manual){
+    const noteEl=qs('.payment-modal-pending-note',paymentModalBody);
+    if(manual&&noteEl)noteEl.textContent=t('payment.checking');
+    try{
+      const response=await fetch(`/api/orders/${encodeURIComponent(orderId)}`);
+      if(!response.ok){if(manual&&noteEl)noteEl.textContent=t('payment.loadError');return;}
+      const order=await response.json();
+      if(['paid','shipped','completed'].includes(order.status)){renderPaymentReceipt(order);return;}
+      if(['expired','cancelled'].includes(order.status)){renderPaymentFailed();return;}
+      if(manual&&noteEl)noteEl.textContent=t('payment.stillPending');
+    }catch{if(manual&&noteEl)noteEl.textContent=t('payment.loadError');}
+  }
+  function openPaymentModal(orderId,invoiceUrl,popupBlocked){
+    paymentModal.hidden=false;document.body.classList.add('no-scroll');
+    renderPaymentWaiting(orderId,invoiceUrl,popupBlocked);
+    paymentPollAttempts=0;clearInterval(paymentPollTimer);
+    paymentPollTimer=setInterval(()=>{
+      paymentPollAttempts++;
+      if(paymentPollAttempts>PAYMENT_POLL_MAX_ATTEMPTS){clearInterval(paymentPollTimer);paymentPollTimer=null;return;}
+      pollOrderStatus(orderId,false);
+    },PAYMENT_POLL_INTERVAL);
+    pollOrderStatus(orderId,false);
+  }
 })();

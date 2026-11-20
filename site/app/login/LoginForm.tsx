@@ -35,6 +35,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
   const googleError = params.get("error");
   const [error, setError] = useState(googleError && GOOGLE_ERROR_KEYS[googleError] ? t(GOOGLE_ERROR_KEYS[googleError]) : "");
   const [busy, setBusy] = useState(false);
+  const checkoutReason = params.get("reason") === "checkout";
 
   const returnTo = params.get("return_to");
   const googleParams = new URLSearchParams({ intent: "login" });
@@ -65,6 +66,11 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
 
   return (
     <form onSubmit={submit} className="login-form">
+      {checkoutReason && (
+        <p className="login-notice" role="status">
+          {t("auth.checkoutReasonNotice")}
+        </p>
+      )}
       <label>
         {t("common.email")}
         <input

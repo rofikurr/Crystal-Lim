@@ -2,8 +2,9 @@ import { sameOrigin } from "../../../lib/auth/session";
 import { createOrder, setOrderInvoice, CheckoutError, type ShippingMethod } from "../../../db/orders";
 import { createInvoice, XenditError } from "../../../lib/xendit";
 import { computeShippingFee, getInternationalShippingFee, type InternationalShippingMethod } from "../../../lib/shipping";
-import { isValidEmail, isValidInternationalPostalCode, isValidPostalCode } from "../../../lib/validation";
+import { isValidInternationalPostalCode, isValidPostalCode } from "../../../lib/validation";
 import { isPaymentMethod, xenditChannelsFor } from "../../../lib/payment-fees";
+import { getEffectiveUser } from "../../../lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,12 @@ const str = (value: unknown, max: number) =>
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "Permintaan tidak valid." }, { status: 403 });
+  // Checkout wajib login: email pesanan selalu dari akun yang sedang masuk
+  // (bukan dari form) supaya pembeli tidak kehilangan jejak pesanan karena
+  // salah ketik/lupa email tamu.
+  const user = await getEffectiveUser().catch(() => null);
+  if (!user) return Response.json({ error: "Silakan masuk atau daftar dulu sebelum checkout." }, { status: 401 });
+
   let body: {
     customer?: Record<string, unknown>;
     items?: { id: string; quantity: number; variantId?: number | null }[];
@@ -27,7 +34,7 @@ export async function POST(request: Request) {
   const customer = body.customer ?? {};
   const name = str(customer.name, 80);
   const phone = str(customer.phone, 20);
-  const email = str(customer.email, 120);
+  const email = user.email;
   const city = str(customer.city, 80);
   const address = str(customer.address, 400);
   const notes = typeof customer.notes === "string" ? customer.notes.trim().slice(0, 200) : "";
@@ -41,7 +48,7 @@ export async function POST(request: Request) {
   const isInternational = country !== "" && country.toLowerCase() !== "indonesia";
 
   if (
-    !name || !phone || !email || !city || !address || !isValidEmail(email) || !isPaymentMethod(paymentMethod) ||
+    !name || !phone || !city || !address || !isPaymentMethod(paymentMethod) ||
     items.length === 0 || items.length > 20 ||
     items.some((item) => typeof item.id !== "string" || !Number.isInteger(item.quantity) ||
       (item.variantId !== undefined && item.variantId !== null && !Number.isInteger(item.variantId)))

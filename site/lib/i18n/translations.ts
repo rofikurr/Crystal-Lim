@@ -31,6 +31,7 @@ const id = {
 
   "auth.loginTitle": "Masuk ke Crystal Lim",
   "auth.loginSubtitle": "Masuk ke akun kamu untuk lanjut.",
+  "auth.checkoutReasonNotice": "Masuk atau daftar dulu sebelum checkout, supaya pesananmu tersimpan rapi ke akun dan gampang dilacak nanti.",
   "auth.loginButton": "Masuk",
   "auth.noAccount": "Belum punya akun?",
   "auth.signUpLink": "Daftar",
@@ -462,6 +463,7 @@ const en: Record<Key, string> = {
 
   "auth.loginTitle": "Sign in to Crystal Lim",
   "auth.loginSubtitle": "Sign in to your account to continue.",
+  "auth.checkoutReasonNotice": "Please sign in or sign up before checkout, so your order is saved to your account and easy to track later.",
   "auth.loginButton": "Sign in",
   "auth.noAccount": "Don't have an account?",
   "auth.signUpLink": "Sign up",

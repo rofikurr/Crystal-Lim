@@ -21,6 +21,7 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
   const params = useSearchParams();
   const { t } = useTranslation();
   const notice = params.get("notice");
+  const checkoutReason = params.get("reason") === "checkout";
   const [name, setName] = useState("");
   const [email, setEmail] = useState(params.get("email") ?? "");
   const [phone, setPhone] = useState("");
@@ -64,6 +65,11 @@ export default function RegisterForm({ googleEnabled }: { googleEnabled: boolean
       {notice === "google_not_registered" && (
         <p className="login-notice" role="status">
           {t("auth.googleNotRegisteredNotice")}
+        </p>
+      )}
+      {checkoutReason && (
+        <p className="login-notice" role="status">
+          {t("auth.checkoutReasonNotice")}
         </p>
       )}
       <label>

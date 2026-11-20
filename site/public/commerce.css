@@ -124,3 +124,27 @@ body,.site-header,.compact-footer,.checkout-header,.checkout-view,
   .hero-gallery .hero-copy { background: transparent; }
   .hero-gallery .eyebrow { color: var(--gold-hover); }
 }
+
+.checkout-form input:read-only{background:oklch(95% .008 75);color:var(--muted)}
+.payment-modal[hidden]{display:none}
+.payment-modal{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
+.payment-modal-backdrop{position:absolute;inset:0;background:oklch(15% .03 315 / .55)}
+.payment-modal-card{position:relative;width:min(440px,100%);max-height:90vh;overflow:auto;background:var(--white);padding:36px 28px;text-align:center;box-shadow:var(--shadow)}
+.payment-modal-close{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--muted)}
+.payment-modal-body h2{font-size:20px;margin:14px 0 8px}
+.payment-modal-note{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 16px}
+.payment-modal-warning{font-size:12px;color:var(--berry);margin:0 0 12px}
+.payment-modal-icon{width:52px;height:52px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px}
+.payment-modal-icon-success{background:oklch(90% .09 150);color:oklch(40% .12 150)}
+.payment-modal-icon-failed{background:oklch(90% .08 25);color:var(--berry)}
+.payment-modal-icon-wait{border:3px solid var(--line);border-top-color:var(--plum);animation:payment-spin 1s linear infinite}
+@keyframes payment-spin{to{transform:rotate(360deg)}}
+.payment-modal .button{display:inline-flex;justify-content:center;width:100%;margin-bottom:10px;min-height:46px;align-items:center}
+.payment-modal-check{width:100%;min-height:44px;border:1px solid var(--line);background:transparent;cursor:pointer;margin-bottom:10px}
+.payment-modal-pending-note{font-size:12px;color:var(--muted);min-height:16px;margin:0 0 6px}
+.payment-modal-orderid{font-size:11px;color:var(--muted);margin:10px 0 0;word-break:break-all}
+.payment-receipt{text-align:left;border:1px solid var(--line);padding:16px;margin:0 0 18px}
+.payment-receipt-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;margin:0 0 8px}
+.payment-receipt-total{border-top:1px solid var(--line);padding-top:8px;font-weight:700}
+.payment-receipt-items{list-style:none;padding:0;margin:0 0 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.payment-receipt-items li{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding:6px 0}

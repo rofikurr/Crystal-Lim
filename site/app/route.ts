@@ -88,6 +88,7 @@ export async function GET() {
     const crystalUser = {
       loggedIn: Boolean(effectiveUser),
       name: effectiveUser?.name ?? "",
+      email: effectiveUser?.email ?? "",
       wishlist: userWishlist,
       addresses: userAddresses,
     };
