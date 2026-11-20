@@ -25,19 +25,17 @@ function card(p: Product) {
   const name = escape(p.name), image = escape(p.image), id = escape(p.id);
   const href = escape(p.url || "#pilihan");
   const isBestSeller = p.categories.some(c => c.slug === BEST_SELLER_SLUG);
-  const outOfStock = p.stock <= 0;
   const slugs = p.categories.map(c => c.slug).join(",");
   const eyebrow = p.categories
     .filter(c => c.slug !== BEST_SELLER_SLUG)
     .map(c => c.name.toUpperCase())
     .join(" · ");
-  return `<article class="product${outOfStock ? " out-of-stock" : ""}" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-price-max="${p.priceMax}" data-stock="${p.stock}" data-image="${image}">
+  return `<article class="product" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-price-max="${p.priceMax}" data-stock="${p.stock}" data-image="${image}">
     <div class="product-media"><a href="${href}"><img src="${image}" alt="${name}" loading="lazy"></a>
       ${isBestSeller ? '<span class="best-seller-badge" data-i18n="product.bestSeller">BEST SELLER</span>' : ""}
-      ${outOfStock ? '<span class="out-of-stock-badge" data-i18n="product.outOfStock">STOK HABIS</span>' : ""}
       <button class="wish" type="button" aria-label="Simpan ${name}">♡</button></div>
     <div class="product-info"><p>${escape(eyebrow)}</p><h3><a href="${href}">${name}</a></h3>
-      <strong>${p.price}</strong><button class="add-button" type="button" data-i18n="${outOfStock ? "product.outOfStock" : "product.buy"}">${outOfStock ? "Stok Habis" : "Beli"}</button></div></article>`;
+      <strong>${p.price}</strong><button class="add-button" type="button" data-i18n="product.buy">Beli</button></div></article>`;
 }
 
 function filterButton(slug: string, name: string) {
@@ -94,8 +92,9 @@ export async function GET() {
       addresses: userAddresses,
     };
 
+    const visibleProducts = products.filter(p => p.stock > 0);
     const usedCategories = new Map<string, string>();
-    for (const product of products) {
+    for (const product of visibleProducts) {
       for (const category of product.categories) {
         if (!usedCategories.has(category.slug)) usedCategories.set(category.slug, category.name);
       }
@@ -106,8 +105,8 @@ export async function GET() {
     const end = storefrontHtml.indexOf(endMarker, start);
     if (start < 0 || end < 0) throw new Error("Kerangka katalog tidak ditemukan.");
     let html = storefrontHtml.slice(0, start + startMarker.length)
-      + products.map(card).join("") + storefrontHtml.slice(end);
-    html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${products.length}</b>`);
+      + visibleProducts.map(card).join("") + storefrontHtml.slice(end);
+    html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${visibleProducts.length}</b>`);
     const filterButtons = [...usedCategories.entries()].map(([slug, name]) => filterButton(slug, name)).join("");
     html = html.replace('data-filter="all">Semua</button>', `data-filter="all">Semua</button>${filterButtons}`);
 
