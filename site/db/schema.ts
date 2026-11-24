@@ -1,6 +1,7 @@
 import {
   boolean,
   datetime,
+  index,
   int,
   json,
   mysqlEnum,
@@ -15,13 +16,54 @@ export const products = mysqlTable("products", {
   name: varchar("name", { length: 140 }).notNull(),
   description: text("description").notNull(),
   price: int("price").notNull(),
+  // Default tinggi (bukan 0) supaya produk lama yang belum pernah di-set stoknya
+  // tidak langsung tampil "habis" begitu kolom ini ditambahkan.
+  stock: int("stock").notNull().default(9999),
+  // Gram. netWeight = produk saja; packedWeight = produk + dus/bubble wrap —
+  // packedWeight yang dipakai hitung ongkir (itu yang ditimbang kurir).
+  // Default 500 cuma placeholder aman untuk produk lama, bukan nilai akurat.
+  netWeight: int("net_weight").notNull().default(500),
+  packedWeight: int("packed_weight").notNull().default(500),
+  // Sentimeter. Dipakai hitung berat volumetrik (P×L×T/5000, standar JNE) —
+  // kurir menagih berdasarkan MANA YANG LEBIH BESAR antara berat aktual vs
+  // volumetrik, supaya barang besar-tapi-ringan tidak salah dapat ongkir
+  // murah dan toko tidak rugi selisih ke kurir. Default dus kado kecil wajar.
+  netLength: int("net_length").notNull().default(10),
+  netWidth: int("net_width").notNull().default(10),
+  netHeight: int("net_height").notNull().default(5),
+  packedLength: int("packed_length").notNull().default(15),
+  packedWidth: int("packed_width").notNull().default(10),
+  packedHeight: int("packed_height").notNull().default(8),
   image: varchar("image", { length: 800 }).notNull(),
   images: json("images").$type<string[]>().notNull().default([]),
+  videos: json("videos").$type<string[]>().notNull().default([]),
   sourceUrl: varchar("source_url", { length: 800 }).notNull().default(""),
   published: boolean("published").notNull().default(true),
   position: int("position").notNull().default(0),
   createdAt: datetime("created_at", { mode: "string" }).notNull(),
   updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
+});
+
+export const productVariants = mysqlTable("product_variants", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: varchar("product_id", { length: 64 })
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  label: varchar("label", { length: 140 }).notNull(),
+  price: int("price").notNull(),
+  stock: int("stock").notNull().default(0),
+  position: int("position").notNull().default(0),
+  // Nullable — null berarti pakai berat/dimensi produk induk. Cuma diisi
+  // kalau variannya beda ukuran fisik (mis. Besar vs Kecil), tidak wajib
+  // untuk varian yang cuma beda warna/jenis tapi fisiknya sama.
+  netWeight: int("net_weight"),
+  packedWeight: int("packed_weight"),
+  netLength: int("net_length"),
+  netWidth: int("net_width"),
+  netHeight: int("net_height"),
+  packedLength: int("packed_length"),
+  packedWidth: int("packed_width"),
+  packedHeight: int("packed_height"),
 });
 
 export const catalogMeta = mysqlTable("catalog_meta", {
@@ -98,31 +140,48 @@ export const users = mysqlTable("users", {
 
 // --- Checkout: pesanan & pembayaran (Xendit) ---
 
-export const orders = mysqlTable("orders", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  customerName: varchar("customer_name", { length: 140 }).notNull(),
-  customerEmail: varchar("customer_email", { length: 255 }).notNull(),
-  customerPhone: varchar("customer_phone", { length: 32 }).notNull(),
-  shippingAddress: text("shipping_address").notNull(),
-  notes: varchar("notes", { length: 200 }).notNull().default(""),
-  subtotal: int("subtotal").notNull(),
-  shippingFee: int("shipping_fee").notNull(),
-  total: int("total").notNull(),
-  status: mysqlEnum("status", [
-    "pending",
-    "paid",
-    "shipped",
-    "completed",
-    "cancelled",
-    "expired",
-  ])
-    .notNull()
-    .default("pending"),
-  xenditInvoiceId: varchar("xendit_invoice_id", { length: 120 }).notNull().default(""),
-  xenditInvoiceUrl: varchar("xendit_invoice_url", { length: 800 }).notNull().default(""),
-  createdAt: datetime("created_at", { mode: "string" }).notNull(),
-  updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
-});
+export const orders = mysqlTable(
+  "orders",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    customerName: varchar("customer_name", { length: 140 }).notNull(),
+    customerEmail: varchar("customer_email", { length: 255 }).notNull(),
+    customerPhone: varchar("customer_phone", { length: 32 }).notNull(),
+    shippingAddress: text("shipping_address").notNull(),
+    notes: varchar("notes", { length: 200 }).notNull().default(""),
+    subtotal: int("subtotal").notNull(),
+    shippingFee: int("shipping_fee").notNull(),
+    // Biaya admin Xendit sesuai metode pembayaran yang dipilih pembeli —
+    // ditanggung pembeli (ditambahkan ke total), bukan dipotong dari toko.
+    paymentMethod: varchar("payment_method", { length: 20 }).notNull().default(""),
+    paymentFee: int("payment_fee").notNull().default(0),
+    total: int("total").notNull(),
+    status: mysqlEnum("status", [
+      "pending",
+      "paid",
+      "shipped",
+      "completed",
+      "cancelled",
+      "expired",
+    ])
+      .notNull()
+      .default("pending"),
+    xenditInvoiceId: varchar("xendit_invoice_id", { length: 120 }).notNull().default(""),
+    xenditInvoiceUrl: varchar("xendit_invoice_url", { length: 800 }).notNull().default(""),
+    // Diisi manual oleh admin setelah serah terima paket ke kurir — tidak ada
+    // resi otomatis (akun RajaOngkir Starter tidak kasih fitur buat resi).
+    trackingNumber: varchar("tracking_number", { length: 80 }).notNull().default(""),
+    // "domestic" = RajaOngkir/flat biasa. "intl_standard"/"intl_express" = ongkir
+    // internasional, nominalnya diisi manual admin di Pengaturan (bukan dihitung
+    // live) karena harus lewat warehouse Jakarta dulu sebelum diteruskan ke LN.
+    shippingMethod: mysqlEnum("shipping_method", ["domestic", "intl_standard", "intl_express"])
+      .notNull()
+      .default("domestic"),
+    createdAt: datetime("created_at", { mode: "string" }).notNull(),
+    updatedAt: datetime("updated_at", { mode: "string" }).notNull(),
+  },
+  (table) => [index("orders_customer_idx").on(table.customerEmail, table.customerPhone)],
+);
 
 export const orderItems = mysqlTable("order_items", {
   id: int("id").autoincrement().primaryKey(),
@@ -134,6 +193,11 @@ export const orderItems = mysqlTable("order_items", {
   productImage: varchar("product_image", { length: 800 }).notNull(),
   unitPrice: int("unit_price").notNull(),
   quantity: int("quantity").notNull(),
+  // Nullable: null kalau produk tidak punya varian. `onDelete: set null` +
+  // variantLabel didenormalisasi di bawah supaya riwayat pesanan tetap
+  // menampilkan nama varian yang dibeli walau variannya sudah dihapus admin.
+  variantId: int("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+  variantLabel: varchar("variant_label", { length: 140 }).notNull().default(""),
 });
 
 export const settings = mysqlTable("settings", {

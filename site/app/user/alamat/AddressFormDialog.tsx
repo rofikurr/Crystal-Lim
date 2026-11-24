@@ -15,7 +15,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { patchJson, postJson } from "@/lib/api-client";
+import { PHONE_PATTERN, POSTAL_PATTERN } from "@/lib/validation";
 import { EMPTY_ADDRESS, type Address, type AddressInput } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function AddressFormDialog({
   open,
@@ -28,6 +31,7 @@ export default function AddressFormDialog({
   address: Address | null;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<AddressInput>(EMPTY_ADDRESS);
   const [busy, setBusy] = useState(false);
 
@@ -44,24 +48,16 @@ export default function AddressFormDialog({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = address
-        ? await fetch(`/api/user/addresses/${address.id}`, {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(form),
-          })
-        : await fetch("/api/user/addresses", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(form),
-          });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Alamat gagal disimpan.");
-      toast.success("Alamat tersimpan.");
+      if (address) {
+        await patchJson(`/api/user/addresses/${address.id}`, form);
+      } else {
+        await postJson("/api/user/addresses", form);
+      }
+      toast.success(t("address.saved"));
       onOpenChange(false);
       onSaved();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Alamat gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("address.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -71,24 +67,24 @@ export default function AddressFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{address ? "Edit alamat" : "Tambah alamat"}</DialogTitle>
-          <DialogDescription>Isi alamat lengkap buat pengiriman pesanan.</DialogDescription>
+          <DialogTitle>{address ? t("address.editTitle") : t("address.addTitle")}</DialogTitle>
+          <DialogDescription>{t("address.formHint")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="addr-label">Label</Label>
+              <Label htmlFor="addr-label">{t("address.label")}</Label>
               <Input
                 id="addr-label"
                 required
                 maxLength={40}
-                placeholder="Rumah, Kantor, dll"
+                placeholder={t("address.labelPlaceholder")}
                 value={form.label}
                 onChange={(e) => update("label", e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="addr-recipient">Nama penerima</Label>
+              <Label htmlFor="addr-recipient">{t("address.recipientName")}</Label>
               <Input
                 id="addr-recipient"
                 required
@@ -98,53 +94,53 @@ export default function AddressFormDialog({
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="addr-phone">Nomor WhatsApp</Label>
+              <Label htmlFor="addr-phone">{t("common.whatsapp")}</Label>
               <Input
                 id="addr-phone"
                 required
                 type="tel"
-                pattern="[+0-9 ()-]{9,20}"
+                pattern={PHONE_PATTERN.source}
                 maxLength={20}
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="addr-province">Provinsi</Label>
+              <Label htmlFor="addr-province">{t("common.province")}</Label>
               <Input id="addr-province" required maxLength={80} value={form.province} onChange={(e) => update("province", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="addr-city">Kota/Kabupaten</Label>
+              <Label htmlFor="addr-city">{t("common.city")}</Label>
               <Input id="addr-city" required maxLength={80} value={form.city} onChange={(e) => update("city", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="addr-district">Kecamatan</Label>
+              <Label htmlFor="addr-district">{t("common.district")}</Label>
               <Input id="addr-district" required maxLength={80} value={form.district} onChange={(e) => update("district", e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="addr-village">Kelurahan/Desa</Label>
+              <Label htmlFor="addr-village">{t("common.village")}</Label>
               <Input id="addr-village" required maxLength={80} value={form.village} onChange={(e) => update("village", e.target.value)} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="addr-address">Alamat lengkap</Label>
+              <Label htmlFor="addr-address">{t("common.fullAddress")}</Label>
               <Textarea
                 id="addr-address"
                 required
                 rows={3}
-                placeholder="Nama jalan, nomor rumah, RT/RW, patokan"
+                placeholder={t("common.addressPlaceholder")}
                 value={form.address}
                 onChange={(e) => update("address", e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="addr-postal">Kode pos</Label>
+              <Label htmlFor="addr-postal">{t("common.postal")}</Label>
               <Input
                 id="addr-postal"
                 required
                 inputMode="numeric"
-                pattern="[0-9]{5}"
+                pattern={POSTAL_PATTERN.source}
                 maxLength={5}
-                placeholder="5 digit"
+                placeholder={t("common.postalPlaceholder")}
                 value={form.postal}
                 onChange={(e) => update("postal", e.target.value)}
               />
@@ -155,16 +151,16 @@ export default function AddressFormDialog({
                   checked={form.isDefault}
                   onCheckedChange={(checked) => update("isDefault", checked === true)}
                 />
-                Jadikan alamat utama
+                {t("address.setDefault")}
               </label>
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Menyimpan…" : "Simpan alamat"}
+              {busy ? t("common.saving") : t("address.save")}
             </Button>
           </DialogFooter>
         </form>

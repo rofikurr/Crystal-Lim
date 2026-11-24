@@ -16,6 +16,11 @@ body { background: var(--white); }
 .brand b { font-size: 27px; font-weight: 750; letter-spacing: -.065em; white-space: nowrap; }
 .brand small { font-size: 6px; letter-spacing: .24em; margin-top: 4px; }
 .header-actions { width: 100%; justify-content: flex-end; gap: 22px; }
+.lang-switch { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line); height: 32px; }
+.lang-switch button { all: unset; cursor: pointer; font-size: 10px; font-weight: 700; letter-spacing: .06em; padding: 0 10px; height: 100%; display: flex; align-items: center; color: var(--muted); }
+.lang-switch button.active { background: var(--ink); color: var(--white); }
+.mobile-menu .lang-switch { height: 36px; margin: 4px 0 14px; width: fit-content; }
+.mobile-menu .lang-switch button { font-size: 11px; padding: 0 14px; }
 .menu-button { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; }
 .market-search { display: flex; width: 44px; min-width: 44px; height: 44px; padding: 10px; background: transparent; border: 0; border-radius: 0; }
 .market-search span { display: none; }
@@ -62,6 +67,12 @@ body { background: var(--white); }
 .products-section .product:nth-child(n) .add-button { border: 1px solid var(--line); border-radius: 0; background: transparent; font-size: 10px; font-weight: 500; min-height: 44px; margin-top: 6px; }
 .products-section .product:nth-child(n) .add-button:hover { background: var(--ink); border-color: var(--ink); color: var(--white); }
 .products-section .wish { width: 44px; height: 44px; border-radius: 0; top: 0; right: 0; font-size: 25px; background: var(--white); }
+@media (hover: hover) {
+  .products-section .wish { opacity: 0; transition: opacity .2s var(--ease, ease); }
+  .products-section .product:hover .wish,
+  .products-section .product:focus-within .wish,
+  .products-section .wish:focus-visible { opacity: 1; }
+}
 .collection-stories { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .collection-story { min-width: 0; position: relative; aspect-ratio: 1.2; overflow: hidden; color: var(--white); }
 .collection-story img { width: 100%; height: 100%; object-fit: cover; }

@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { LogOut, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LanguageSwitcher from "@/components/shared/LanguageSwitcher";
+import { useTranslation } from "@/lib/i18n/context";
 
 type TopbarUser = {
   name: string;
@@ -13,6 +15,7 @@ type TopbarUser = {
 };
 
 export default function UserTopbar({ user }: { user: TopbarUser }) {
+  const { t } = useTranslation();
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
@@ -27,14 +30,14 @@ export default function UserTopbar({ user }: { user: TopbarUser }) {
     <>
       {user.viewingAs && (
         <div className="flex flex-wrap items-center justify-center gap-3 bg-[#3a2f1f] px-5 py-2.5 text-sm text-[#f5eedf]">
-          <span>Pratinjau sebagai akun pelanggan (akun asli: {user.actualRoleName})</span>
+          <span>{t("userTopbar.previewAs", { role: user.actualRoleName })}</span>
           <Button
             size="sm"
             variant="outline"
             className="h-7 border-[#d7c6a6] bg-transparent text-[#f5eedf] hover:bg-white/10 hover:text-[#f5eedf]"
             onClick={backToAdmin}
           >
-            Kembali ke {user.actualRoleName}
+            {t("userTopbar.backTo", { role: user.actualRoleName })}
           </Button>
         </div>
       )}
@@ -45,13 +48,14 @@ export default function UserTopbar({ user }: { user: TopbarUser }) {
         </Link>
         <div className="flex items-center gap-2">
           <span className="hidden text-sm text-muted-foreground sm:inline">{user.email}</span>
+          <LanguageSwitcher />
           <Button variant="ghost" size="sm" asChild>
             <Link href="/">
-              <Store className="size-4" /> Lihat toko
+              <Store className="size-4" /> {t("common.viewStore")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="size-4" /> Keluar
+            <LogOut className="size-4" /> {t("common.signOut")}
           </Button>
         </div>
       </header>

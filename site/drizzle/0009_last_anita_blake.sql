@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `tracking_number` varchar(80) DEFAULT '' NOT NULL;

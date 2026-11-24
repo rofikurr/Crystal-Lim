@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Permission, Role } from "./types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function RolesList({
   roles,
@@ -18,6 +19,7 @@ export default function RolesList({
   onTogglePermission: (role: Role, permissionSlug: string, checked: boolean) => void;
   onDelete: (role: Role) => void;
 }) {
+  const { t } = useTranslation();
   const grouped = permissions.reduce<Record<string, Permission[]>>((acc, p) => {
     (acc[p.group] ??= []).push(p);
     return acc;
@@ -32,11 +34,11 @@ export default function RolesList({
               <CardTitle className="flex items-center gap-2 text-base">
                 {role.name}
                 <span className="text-xs font-normal text-muted-foreground">({role.slug})</span>
-                {role.isSystem && <Badge variant="outline">Sistem</Badge>}
+                {role.isSystem && <Badge variant="outline">{t("roles.system")}</Badge>}
               </CardTitle>
               {role.isSystem && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Role sistem — akses penuh implisit, tidak bisa diubah.
+                  {t("roles.systemHint")}
                 </p>
               )}
             </div>
@@ -44,7 +46,7 @@ export default function RolesList({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                title="Hapus role"
+                title={t("roles.deleteRole")}
                 className="text-destructive hover:text-destructive"
                 onClick={() => onDelete(role)}
               >

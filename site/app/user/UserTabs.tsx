@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/context";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 const TABS = [
-  { href: "/user/dashboard", label: "Dashboard" },
-  { href: "/user/alamat", label: "Alamat" },
-  { href: "/user/wishlist", label: "Wishlist" },
-  { href: "/user/profil", label: "Profil" },
+  { href: "/user/dashboard", labelKey: "userTabs.dashboard" as TranslationKey },
+  { href: "/user/alamat", labelKey: "userTabs.address" as TranslationKey },
+  { href: "/user/wishlist", labelKey: "userTabs.wishlist" as TranslationKey },
+  { href: "/user/profil", labelKey: "userTabs.profile" as TranslationKey },
 ] as const;
 
 export default function UserTabs() {
   const pathname = usePathname();
+  const { t } = useTranslation();
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-border">
       {TABS.map((tab) => {
@@ -28,7 +31,7 @@ export default function UserTabs() {
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </Link>
         );
       })}

@@ -1,41 +1,23 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { roles, users } from "@/db/schema";
-import { hashPassword } from "@/lib/auth/password";
-import { requirePermissionOrResponse } from "@/lib/auth/permissions";
-import { sameOrigin } from "@/lib/auth/session";
-import { nowForDb } from "@/lib/db-time";
+import { findRoleById } from "../../../../db/roles";
+import { createUser, findUserByEmail, listUsersWithRole } from "../../../../db/users";
+import { hashPassword } from "../../../../lib/auth/password";
+import { requirePermissionOrResponse } from "../../../../lib/auth/permissions";
+import { sameOrigin } from "../../../../lib/auth/session";
+import { nowForDb } from "../../../../lib/db-time";
+import { isValidEmail } from "../../../../lib/validation";
 
 export const dynamic = "force-dynamic";
-
-async function serializeUsers() {
-  return db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      phone: users.phone,
-      status: users.status,
-      roleId: roles.id,
-      roleSlug: roles.slug,
-      roleName: roles.name,
-    })
-    .from(users)
-    .innerJoin(roles, eq(users.roleId, roles.id));
-}
 
 export async function GET() {
   const { response } = await requirePermissionOrResponse("users.manage");
   if (response) return response;
   try {
-    return Response.json({ users: await serializeUsers() }, { headers: { "cache-control": "no-store" } });
+    return Response.json({ users: await listUsersWithRole() }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "Data user gagal dimuat." }, { status: 503 });
   }
 }
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   const { response } = await requirePermissionOrResponse("users.manage");
@@ -56,7 +38,7 @@ export async function POST(request: Request) {
   if (
     !name ||
     name.length > 140 ||
-    !emailPattern.test(email) ||
+    !isValidEmail(email) ||
     password.length < 8 ||
     !Number.isInteger(roleId)
   ) {
@@ -67,15 +49,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [existingEmail] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const existingEmail = await findUserByEmail(email);
     if (existingEmail) {
       return Response.json({ error: "Email sudah dipakai user lain." }, { status: 409 });
     }
-    const [role] = await db.select().from(roles).where(eq(roles.id, roleId)).limit(1);
+    const role = await findRoleById(roleId);
     if (!role) return Response.json({ error: "Role tidak ditemukan." }, { status: 400 });
 
     const now = nowForDb();
-    const [inserted] = await db.insert(users).values({
+    const id = await createUser({
       name,
       email,
       passwordHash: await hashPassword(password),
@@ -84,7 +66,7 @@ export async function POST(request: Request) {
       createdAt: now,
       updatedAt: now,
     });
-    return Response.json({ ok: true, id: inserted.insertId }, { status: 201 });
+    return Response.json({ ok: true, id }, { status: 201 });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "User gagal dibuat." }, { status: 503 });

@@ -1,13 +1,17 @@
 const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const cart = [];
+const cartKey = item => `${item.id}::${item.variantId ?? ''}`;
 // Persist product IDs only; never store addresses or payment data in the browser.
 try {
   const saved = JSON.parse(localStorage.getItem('crystal-lim-cart-v1') || '[]');
   if (Array.isArray(saved)) for (const row of saved.slice(0, 6)) {
     const product = window.crystalCatalog.find(p => p.id === row.id);
-    if (product && Number.isInteger(row.quantity) && row.quantity > 0 && row.quantity <= 10 && !cart.some(p => p.id === row.id)) {
-      for (let i = 0; i < row.quantity; i++) cart.push({ id: product.id, name: product.name, price: product.price, image: product.image });
+    const variant = row.variantId ? product?.variants?.find(v => v.id === row.variantId) : null;
+    if (product && (!row.variantId || variant) && Number.isInteger(row.quantity) && row.quantity > 0 && row.quantity <= 10 && !cart.some(p => cartKey(p) === cartKey(row))) {
+      const name = variant ? `${product.name} — ${variant.label}` : product.name;
+      const price = variant ? variant.price : product.price;
+      for (let i = 0; i < row.quantity; i++) cart.push({ id: product.id, variantId: variant?.id ?? null, name, price, image: product.image });
     }
   }
 } catch { /* Storage can be disabled in private/file previews. */ }
@@ -16,8 +20,12 @@ const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 
 // Keep storefront prices consistent with the cart, using Indonesian formatting.
+// Varian dengan harga berbeda ditampilkan sebagai range "Rp X - Rp Y".
 qsa('.product').forEach(product => {
-  qs('.product-info strong', product).textContent = rupiah.format(Number(product.dataset.price));
+  const price = Number(product.dataset.price), priceMax = Number(product.dataset.priceMax);
+  qs('.product-info strong', product).textContent = priceMax > price
+    ? `${rupiah.format(price)} - ${rupiah.format(priceMax)}`
+    : rupiah.format(price);
 });
 
 const drawer = qs('.cart-drawer');
@@ -37,7 +45,8 @@ function syncOverlayAccess() {
     previousInert.set(el, el.inert); el.inert = true;
   }
 }
-drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-modal', 'true'); drawer.setAttribute('aria-label', 'Keranjang belanja');
+const t = (...args) => window.crystalI18n.t(...args);
+drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-modal', 'true'); drawer.setAttribute('aria-label', t('cart.title'));
 checkout.setAttribute('role', 'dialog'); checkout.setAttribute('aria-modal', 'true'); checkout.setAttribute('aria-label', 'Checkout');
 syncOverlayAccess();
 document.addEventListener('keydown', event => {
@@ -58,27 +67,28 @@ function renderCart() {
   window.dispatchEvent(new Event('cart:changed'));
   const grouped = Object.values(cart.reduce((result, item, index) => {
     const id = item.id || window.crystalCatalog.find(p => p.name === item.name)?.id;
-    if (!result[id]) result[id] = { ...item, id, index, quantity: 0 };
-    result[id].quantity++; return result;
+    const key = cartKey({ ...item, id });
+    if (!result[key]) result[key] = { ...item, id, index, quantity: 0 };
+    result[key].quantity++; return result;
   }, {}));
-  try { localStorage.setItem('crystal-lim-cart-v1', JSON.stringify(grouped.map(({id,quantity}) => ({id,quantity})))); } catch {}
+  try { localStorage.setItem('crystal-lim-cart-v1', JSON.stringify(grouped.map(({id,variantId,quantity}) => ({id,variantId:variantId??null,quantity})))); } catch {}
   const count = cart.length;
   const total = cartSubtotal();
   qs('.cart-count').textContent = count;
-  qs('.cart-button').setAttribute('aria-label', `Buka keranjang, ${count} barang`);
-  qs('.mobile-cart-count').textContent = `${count} barang`;
+  qs('.cart-button').setAttribute('aria-label', t('cart.openLabel', { count }));
+  qs('.mobile-cart-count').textContent = t('cart.itemsCount', { count });
   qs('.mobile-cart-total').textContent = rupiah.format(total);
   mobileBar.hidden = count === 0;
 
   if (!count) {
-    cartItems.innerHTML = '<div class="empty-cart"><span>◇</span><h3>Keranjang masih kosong</h3><p>Pilih kristal yang paling menarik perhatianmu.</p></div>';
+    cartItems.innerHTML = `<div class="empty-cart"><span>◇</span><h3>${t('cart.empty')}</h3><p>${t('cart.emptyHint')}</p></div>`;
     cartFooter.hidden = true;
   } else {
     cartItems.innerHTML = grouped.map(item => `
       <div class="cart-item">
         <img src="${escapeHtml(item.image)}" alt="">
-        <div><b>${escapeHtml(item.name)}</b><small>${rupiah.format(item.price)} / buah</small><div class="cart-quantity"><button data-cart-change="-1" data-index="${item.index}" aria-label="Kurangi ${escapeHtml(item.name)}">−</button><span aria-label="Jumlah">${item.quantity}</span><button data-cart-change="1" data-index="${item.index}" aria-label="Tambah ${escapeHtml(item.name)}" ${item.quantity >= 10 ? 'disabled' : ''}>+</button></div></div>
-        <button class="remove-item" data-id="${escapeHtml(item.id)}" aria-label="Hapus ${escapeHtml(item.name)}">×</button>
+        <div><b>${escapeHtml(item.name)}</b><small>${rupiah.format(item.price)} ${t('cart.perItem')}</small><div class="cart-quantity"><button data-cart-change="-1" data-index="${item.index}" aria-label="${t('cart.decrease', { name: item.name })}">−</button><span aria-label="Jumlah">${item.quantity}</span><button data-cart-change="1" data-index="${item.index}" aria-label="${t('cart.increase', { name: item.name })}" ${item.quantity >= 10 ? 'disabled' : ''}>+</button></div></div>
+        <button class="remove-item" data-id="${escapeHtml(item.id)}" data-variant="${escapeHtml(item.variantId ?? '')}" aria-label="${t('cart.remove', { name: item.name })}">×</button>
       </div>`).join('');
     cartFooter.hidden = false;
     qs('.cart-total strong').textContent = rupiah.format(total);
@@ -107,6 +117,10 @@ function closeDrawer() {
 
 function openCheckout() {
   if (!cart.length) return;
+  if (!window.crystalUser?.loggedIn) {
+    location.href = `/login?reason=checkout&return_to=${encodeURIComponent('/?checkout=open')}`;
+    return;
+  }
   checkoutOpener = drawer.classList.contains('open') ? drawerOpener : document.activeElement;
   closeDrawer();
   checkout.classList.add('open');
@@ -140,12 +154,13 @@ cartItems.addEventListener('click', event => {
     const index = Number(change.dataset.index), item = cart[index];
     if (!item) return;
     if (change.dataset.cartChange === '-1') cart.splice(index, 1);
-    else if (cart.filter(p => p.id === item.id).length < 10) cart.push({...item});
+    else if (cart.filter(p => cartKey(p) === cartKey(item)).length < 10) cart.push({...item});
     renderCart(); qs('[data-cart-change]', cartItems)?.focus(); return;
   }
   const remove = event.target.closest('.remove-item');
   if (!remove) return;
-  for (let i = cart.length - 1; i >= 0; i--) if (cart[i].id === remove.dataset.id) cart.splice(i, 1);
+  const removeKey = `${remove.dataset.id}::${remove.dataset.variant ?? ''}`;
+  for (let i = cart.length - 1; i >= 0; i--) if (cartKey(cart[i]) === removeKey) cart.splice(i, 1);
   renderCart();
   (qs('.remove-item', cartItems) || qs('.drawer-close')).focus();
 });
@@ -153,7 +168,7 @@ cartItems.addEventListener('click', event => {
 const catalogProducts = qsa('.product');
 const emptyResults = document.createElement('div');
 emptyResults.className = 'empty-results'; emptyResults.hidden = true;
-emptyResults.innerHTML = '<h3>Produk belum ditemukan</h3><p>Coba kata lain atau tampilkan semua koleksi.</p><button type="button">Reset pencarian & filter</button>';
+emptyResults.innerHTML = `<h3>${t('search.emptyTitle')}</h3><p>${t('search.emptyHint')}</p><button type="button">${t('search.emptyReset')}</button>`;
 qs('.product-grid').after(emptyResults);
 emptyResults.querySelector('button').addEventListener('click', () => { qs('#search-input').value = ''; qs('.filter[data-filter="all"]').click(); });
 qs('#result-count').parentElement.setAttribute('role', 'status');
@@ -242,7 +257,7 @@ qs('.newsletter-form')?.addEventListener('submit', async event => {
   event.preventDefault();
   const status = qs('#newsletter-status');
   const email = event.target.elements.email.value;
-  status.textContent = 'Mendaftarkan…';
+  status.textContent = t('newsletter.submitting');
   try {
     const response = await fetch('/api/newsletter', {
       method: 'POST',
@@ -250,11 +265,11 @@ qs('.newsletter-form')?.addEventListener('submit', async event => {
       body: JSON.stringify({ email }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Pendaftaran gagal.');
-    status.textContent = 'Terima kasih sudah berlangganan!';
+    if (!response.ok) throw new Error(data.error || t('newsletter.error'));
+    status.textContent = t('newsletter.success');
     event.target.reset();
   } catch (error) {
-    status.textContent = error.message || 'Pendaftaran gagal. Coba lagi.';
+    status.textContent = error.message || t('newsletter.error');
   }
 });
 
@@ -294,7 +309,7 @@ function closeMobileMenu(restoreFocus = false) {
   mobileMenu.hidden = true;
   menuButton.classList.remove('open');
   menuButton.setAttribute('aria-expanded', 'false');
-  menuButton.setAttribute('aria-label', 'Buka menu');
+  menuButton.setAttribute('aria-label', t('header.menuOpen'));
   qsa('details', mobileMenu).forEach(group => { group.open = false; });
   if (restoreFocus) menuButton.focus();
 }
@@ -305,7 +320,7 @@ menuButton.addEventListener('click', () => {
   mobileMenu.hidden = false;
   menuButton.classList.add('open');
   menuButton.setAttribute('aria-expanded', 'true');
-  menuButton.setAttribute('aria-label', 'Tutup menu');
+  menuButton.setAttribute('aria-label', t('header.menuClose'));
   qs('a', mobileMenu).focus();
 });
 qsa('.mobile-menu a').forEach(link => link.addEventListener('click', () => closeMobileMenu()));
@@ -350,11 +365,20 @@ refreshCatalog();
 
 const paymentParams = new URLSearchParams(location.search);
 if (paymentParams.has('payment')) {
+  history.replaceState(null, '', location.pathname);
+  // Tab ini hasil window.open() dari tab asal (modal status pembayaran ada
+  // di sana) — begitu Xendit redirect balik ke sini, tutup saja tabnya.
+  // Kalau browser menolak (bukan tab hasil script, atau noopener), banner
+  // di bawah jadi fallback supaya pembeli tetap lihat statusnya.
+  if (window.opener) window.close();
   const success = paymentParams.get('payment') === 'success';
   const banner = document.createElement('div');
   banner.className = 'announcement';
   banner.setAttribute('role', 'status');
-  banner.innerHTML = `<strong>${success ? 'Pembayaran berhasil' : 'Pembayaran belum selesai'}</strong><span>${success ? 'Terima kasih sudah berbelanja di Crystal Lim!' : 'Silakan coba lagi dari keranjang.'}</span>`;
+  banner.innerHTML = `<strong>${success ? t('announcement.paidTitle') : t('announcement.unpaidTitle')}</strong><span>${success ? t('announcement.paidBody') : t('announcement.unpaidBody')}</span>`;
   qs('.announcement').after(banner);
+}
+if (paymentParams.get('checkout') === 'open') {
   history.replaceState(null, '', location.pathname);
+  if (cart.length) openCheckout();
 }

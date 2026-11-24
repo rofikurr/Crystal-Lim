@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
+import { cookies } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { LanguageProvider } from "@/lib/i18n/context";
+import { resolveLang } from "@/lib/i18n/translations";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -22,17 +25,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const lang = resolveLang((await cookies()).get("lang")?.value);
   return (
-    <html lang="id" className={manrope.variable} suppressHydrationWarning>
+    <html lang={lang} className={manrope.variable} suppressHydrationWarning>
       <body className={manrope.className}>
         <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light">
-          {children}
-          <Toaster richColors position="top-right" />
+          <LanguageProvider initialLang={lang}>
+            {children}
+            <Toaster richColors position="top-right" />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

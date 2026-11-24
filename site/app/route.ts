@@ -1,23 +1,22 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { cookies } from "next/headers";
 import { BEST_SELLER_SLUG, listProducts, type Product } from "../db/catalog";
-import { getSetting } from "../db/settings";
+import { getNumericSetting } from "../db/settings";
 import { getEffectiveUser } from "../lib/auth/permissions";
 import { listAddresses } from "../db/addresses";
 import { listWishlistProductIds } from "../db/wishlist";
+import { getShippingMode, getInternationalShippingFee } from "../lib/shipping";
 
 export const dynamic = "force-dynamic";
 
+// .replace: editor/git (core.autocrlf di Windows) kadang menulis file ini dengan
+// CRLF, yang akan membuat startMarker/endMarker (ditulis dengan "\n" polos di
+// bawah) gagal match lewat indexOf dan storefront jatuh ke unavailablePage.
 const storefrontHtml = readFileSync(
   path.join(process.cwd(), "app", "storefront.html"),
   "utf-8",
-);
-
-const rupiah = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
+).replace(/\r\n/g, "\n");
 
 const escape = (value: string) => value.replace(/[&<>"']/g, char =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
@@ -31,12 +30,12 @@ function card(p: Product) {
     .filter(c => c.slug !== BEST_SELLER_SLUG)
     .map(c => c.name.toUpperCase())
     .join(" · ");
-  return `<article class="product" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-image="${image}">
+  return `<article class="product" data-id="${id}" data-category="${escape(slugs)}" data-name="${name}" data-price="${p.price}" data-price-max="${p.priceMax}" data-stock="${p.stock}" data-image="${image}">
     <div class="product-media"><a href="${href}"><img src="${image}" alt="${name}" loading="lazy"></a>
-      ${isBestSeller ? '<span class="best-seller-badge">BEST SELLER</span>' : ""}
+      ${isBestSeller ? '<span class="best-seller-badge" data-i18n="product.bestSeller">BEST SELLER</span>' : ""}
       <button class="wish" type="button" aria-label="Simpan ${name}">♡</button></div>
     <div class="product-info"><p>${escape(eyebrow)}</p><h3><a href="${href}">${name}</a></h3>
-      <strong>${p.price}</strong><button class="add-button" type="button">Beli</button></div></article>`;
+      <strong>${p.price}</strong><button class="add-button" type="button" data-i18n="product.buy">Beli</button></div></article>`;
 }
 
 function filterButton(slug: string, name: string) {
@@ -67,12 +66,14 @@ export async function GET() {
       console.error("Katalog produk gagal dimuat, tampilkan etalase kosong", error);
       return [];
     });
-    const shippingFlatFee = await getSetting("shipping_flat_fee", "0")
-      .then(Number)
-      .catch((error) => {
-        console.error("Pengaturan ongkir gagal dimuat, pakai default 0", error);
-        return 0;
-      });
+    const shippingFlatFee = await getNumericSetting("shipping_flat_fee", 0).catch((error) => {
+      console.error("Pengaturan ongkir gagal dimuat, pakai default 0", error);
+      return 0;
+    });
+    const shippingMode = await getShippingMode().catch(() => "auto" as const);
+    const internationalStandardFee = await getInternationalShippingFee("intl_standard").catch(() => 0);
+    const internationalExpressFee = await getInternationalShippingFee("intl_express").catch(() => 0);
+    const lang = (await cookies()).get("lang")?.value === "en" ? "en" : "id";
 
     const effectiveUser = await getEffectiveUser().catch((error) => {
       console.error("Sesi pengguna gagal dibaca", error);
@@ -87,12 +88,14 @@ export async function GET() {
     const crystalUser = {
       loggedIn: Boolean(effectiveUser),
       name: effectiveUser?.name ?? "",
+      email: effectiveUser?.email ?? "",
       wishlist: userWishlist,
       addresses: userAddresses,
     };
 
+    const visibleProducts = products.filter(p => p.stock > 0);
     const usedCategories = new Map<string, string>();
-    for (const product of products) {
+    for (const product of visibleProducts) {
       for (const category of product.categories) {
         if (!usedCategories.has(category.slug)) usedCategories.set(category.slug, category.name);
       }
@@ -103,11 +106,10 @@ export async function GET() {
     const end = storefrontHtml.indexOf(endMarker, start);
     if (start < 0 || end < 0) throw new Error("Kerangka katalog tidak ditemukan.");
     let html = storefrontHtml.slice(0, start + startMarker.length)
-      + products.map(card).join("") + storefrontHtml.slice(end);
-    html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${products.length}</b>`);
+      + visibleProducts.map(card).join("") + storefrontHtml.slice(end);
+    html = html.replace(/<b id="result-count">\d+<\/b>/, `<b id="result-count">${visibleProducts.length}</b>`);
     const filterButtons = [...usedCategories.entries()].map(([slug, name]) => filterButton(slug, name)).join("");
     html = html.replace('data-filter="all">Semua</button>', `data-filter="all">Semua</button>${filterButtons}`);
-    html = html.replace('<strong id="shipping-fee-display">Rp0</strong>', `<strong id="shipping-fee-display">${rupiah.format(shippingFlatFee)}</strong>`);
 
     const categoryLinks = [...usedCategories.entries()].map(([slug, name]) => categoryMenuLink(slug, name)).join("");
     html = html.replace('<div class="category-menu" hidden></div>', `<div class="category-menu" hidden>${categoryLinks}</div>`);
@@ -119,13 +121,14 @@ export async function GET() {
       `class="icon-button account-button${crystalUser.loggedIn ? " logged-in" : ""}" type="button" aria-label="${escape(accountLabel)}" title="${escape(accountLabel)}" aria-expanded="false"`,
     );
     const accountMenuHtml = crystalUser.loggedIn
-      ? `<a href="/user/dashboard">Akun Saya</a><a href="/user/alamat">Alamat Saya</a><a href="/user/wishlist">Wishlist</a><a href="#" id="account-signout">Keluar</a>`
-      : `<a href="/login">Masuk</a><a href="/daftar">Daftar</a>`;
+      ? `<a href="/user/dashboard" data-i18n="account.myAccount">Akun Saya</a><a href="/user/alamat" data-i18n="account.myAddress">Alamat Saya</a><a href="/user/wishlist" data-i18n="account.wishlist">Wishlist</a><a href="#" id="account-signout" data-i18n="account.signOut">Keluar</a>`
+      : `<a href="/login" data-i18n="account.signIn">Masuk</a><a href="/daftar" data-i18n="account.signUp">Daftar</a>`;
     html = html.replace('<div class="category-menu" id="account-menu" hidden></div>', `<div class="category-menu" id="account-menu" hidden>${accountMenuHtml}</div>`);
 
     const catalog = JSON.stringify(products).replace(/</g, "\\u003c");
     const userData = JSON.stringify(crystalUser).replace(/</g, "\\u003c");
-    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee}};window.crystalUser=${userData};</script>`);
+    html = html.replace('<script src="i18n.js"></script>', `<script>window.crystalLang=${JSON.stringify(lang)};</script><script src="i18n.js"></script>`);
+    html = html.replace('<script src="product-data.js"></script>', `<script>window.crystalCatalog=${catalog};window.crystalShipping={flatFee:${shippingFlatFee},mode:${JSON.stringify(shippingMode)},internationalStandardFee:${internationalStandardFee},internationalExpressFee:${internationalExpressFee}};window.crystalUser=${userData};</script>`);
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   } catch (error) {
     console.error("Storefront unavailable", error);

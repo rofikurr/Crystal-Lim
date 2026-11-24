@@ -6,12 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { patchJson } from "@/lib/api-client";
+import { PHONE_PATTERN } from "@/lib/validation";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function ProfileForm({
   initial,
 }: {
   initial: { name: string; phone: string; email: string };
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initial.name);
   const [phone, setPhone] = useState(initial.phone);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -22,22 +26,16 @@ export default function ProfileForm({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name,
-          phone,
-          ...(newPassword ? { currentPassword, newPassword } : {}),
-        }),
+      await patchJson("/api/user/profile", {
+        name,
+        phone,
+        ...(newPassword ? { currentPassword, newPassword } : {}),
       });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Profil gagal disimpan.");
-      toast.success("Profil berhasil disimpan.");
+      toast.success(t("profile.saved"));
       setCurrentPassword("");
       setNewPassword("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Profil gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("profile.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -48,27 +46,27 @@ export default function ProfileForm({
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="profile-email">Email</Label>
+            <Label htmlFor="profile-email">{t("common.email")}</Label>
             <Input id="profile-email" value={initial.email} disabled />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="profile-name">Nama lengkap</Label>
+            <Label htmlFor="profile-name">{t("common.fullName")}</Label>
             <Input id="profile-name" required maxLength={140} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="profile-phone">Nomor WhatsApp</Label>
+            <Label htmlFor="profile-phone">{t("common.whatsapp")}</Label>
             <Input
               id="profile-phone"
               required
               type="tel"
-              pattern="[+0-9 ()-]{9,20}"
+              pattern={PHONE_PATTERN.source}
               maxLength={20}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
           </div>
           <div className="space-y-1.5 border-t border-border pt-4">
-            <Label htmlFor="profile-current-password">Password lama (isi kalau mau ganti password)</Label>
+            <Label htmlFor="profile-current-password">{t("profile.currentPassword")}</Label>
             <Input
               id="profile-current-password"
               type="password"
@@ -78,19 +76,19 @@ export default function ProfileForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="profile-new-password">Password baru</Label>
+            <Label htmlFor="profile-new-password">{t("profile.newPassword")}</Label>
             <Input
               id="profile-new-password"
               type="password"
               minLength={8}
               autoComplete="new-password"
-              placeholder="Minimal 8 karakter"
+              placeholder={t("profile.newPasswordPlaceholder")}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
           <Button type="submit" disabled={busy}>
-            {busy ? "Menyimpan…" : "Simpan perubahan"}
+            {busy ? t("common.saving") : t("profile.saveChanges")}
           </Button>
         </form>
       </CardContent>

@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `shipping_method` enum('domestic','intl_standard','intl_express') DEFAULT 'domestic' NOT NULL;

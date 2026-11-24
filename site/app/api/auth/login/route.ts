@@ -1,12 +1,14 @@
-import { eq } from "drizzle-orm";
-import { db } from "../../../../db";
-import { roles, users } from "../../../../db/schema";
+import { findUserForLogin } from "../../../../db/users";
 import { verifyPassword } from "../../../../lib/auth/password";
 import { sameOrigin, setSessionCookie } from "../../../../lib/auth/session";
+import { getClientIp, isRateLimited, rateLimitResponse } from "../../../../lib/rate-limit";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) {
     return Response.json({ error: "Permintaan tidak valid." }, { status: 403 });
+  }
+  if (isRateLimited(`login:${getClientIp(request)}`, 10, 5 * 60 * 1000)) {
+    return rateLimitResponse();
   }
   let body: { email?: string; password?: string };
   try {
@@ -20,18 +22,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Email dan kata sandi wajib diisi." }, { status: 400 });
   }
 
-  const rows = await db
-    .select({
-      id: users.id,
-      passwordHash: users.passwordHash,
-      status: users.status,
-      roleSlug: roles.slug,
-    })
-    .from(users)
-    .innerJoin(roles, eq(users.roleId, roles.id))
-    .where(eq(users.email, email))
-    .limit(1);
-  const row = rows[0];
+  const row = await findUserForLogin(email);
 
   if (!row || row.status === "suspended" || !(await verifyPassword(password, row.passwordHash))) {
     return Response.json({ error: "Email atau kata sandi salah." }, { status: 401 });

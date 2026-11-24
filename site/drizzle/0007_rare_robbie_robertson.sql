@@ -1,0 +1,1 @@
+ALTER TABLE `products` ADD `stock` int DEFAULT 9999 NOT NULL;

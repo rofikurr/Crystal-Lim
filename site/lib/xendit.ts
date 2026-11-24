@@ -1,4 +1,16 @@
+import { timingSafeEqual } from "node:crypto";
+
 export class XenditError extends Error {}
+
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    timingSafeEqual(bufA, bufA); // tetap lakukan perbandingan agar waktu respons tidak membocorkan panjang token
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
 
 export async function createInvoice(input: {
   externalId: string;
@@ -9,6 +21,8 @@ export async function createInvoice(input: {
   items: { name: string; quantity: number; price: number }[];
   successUrl: string;
   failureUrl: string;
+  paymentMethods?: string[];
+  fees?: { type: string; value: number }[];
 }): Promise<{ invoiceId: string; invoiceUrl: string }> {
   const secretKey = process.env.XENDIT_SECRET_KEY;
   if (!secretKey) throw new XenditError("XENDIT_SECRET_KEY belum diset.");
@@ -36,6 +50,10 @@ export async function createInvoice(input: {
       })),
       success_redirect_url: input.successUrl,
       failure_redirect_url: input.failureUrl,
+      ...(input.paymentMethods && input.paymentMethods.length > 0
+        ? { payment_methods: input.paymentMethods }
+        : {}),
+      ...(input.fees && input.fees.length > 0 ? { fees: input.fees } : {}),
     }),
   });
   const data = await response.json();
@@ -47,6 +65,7 @@ export async function createInvoice(input: {
 
 export function verifyCallbackToken(request: Request): boolean {
   const token = process.env.XENDIT_CALLBACK_TOKEN;
-  if (!token) return false;
-  return request.headers.get("x-callback-token") === token;
+  const received = request.headers.get("x-callback-token");
+  if (!token || !received) return false;
+  return safeEqual(received, token);
 }

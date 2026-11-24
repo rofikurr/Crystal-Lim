@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { patchJson, postJson } from "@/lib/api-client";
 import type { Category } from "../types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function CategoryFormDialog({
   open,
@@ -28,6 +30,7 @@ export default function CategoryFormDialog({
   nextPosition: number;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [position, setPosition] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -42,24 +45,16 @@ export default function CategoryFormDialog({
     event.preventDefault();
     setBusy(true);
     try {
-      const response = category
-        ? await fetch(`/api/admin/products/categories/${category.id}`, {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name, position }),
-          })
-        : await fetch("/api/admin/products/categories", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name, position }),
-          });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Kategori gagal disimpan.");
-      toast.success(category ? "Kategori diperbarui." : "Kategori baru dibuat.");
+      if (category) {
+        await patchJson(`/api/admin/products/categories/${category.id}`, { name, position });
+      } else {
+        await postJson("/api/admin/products/categories", { name, position });
+      }
+      toast.success(category ? t("categories.form.updated") : t("categories.form.created"));
       onOpenChange(false);
       onSaved();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Kategori gagal disimpan.");
+      toast.error(error instanceof Error ? error.message : t("categories.form.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -69,14 +64,14 @@ export default function CategoryFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{category ? "Edit kategori" : "Tambah kategori"}</DialogTitle>
+          <DialogTitle>{category ? t("categories.form.editTitle") : t("categories.form.addTitle")}</DialogTitle>
           <DialogDescription>
-            Kategori ini akan muncul sebagai pilihan di form produk dan filter etalase.
+            {t("categories.form.hint")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="category-name">Nama kategori</Label>
+            <Label htmlFor="category-name">{t("categories.form.name")}</Label>
             <Input
               id="category-name"
               required
@@ -86,7 +81,7 @@ export default function CategoryFormDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="category-position">Urutan tampil</Label>
+            <Label htmlFor="category-position">{t("categories.form.order")}</Label>
             <Input
               id="category-position"
               type="number"
@@ -98,10 +93,10 @@ export default function CategoryFormDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Menyimpan…" : "Simpan kategori"}
+              {busy ? t("common.saving") : t("categories.form.save")}
             </Button>
           </DialogFooter>
         </form>

@@ -1,10 +1,9 @@
-import { eq } from "drizzle-orm";
-import { db } from "../../../../db";
-import { users } from "../../../../db/schema";
+import { findUserById, updateUser } from "../../../../db/users";
 import { getEffectiveUser } from "../../../../lib/auth/permissions";
 import { hashPassword, verifyPassword } from "../../../../lib/auth/password";
 import { sameOrigin } from "../../../../lib/auth/session";
 import { nowForDb } from "../../../../lib/db-time";
+import { isValidPhone } from "../../../../lib/validation";
 
 export async function PATCH(request: Request) {
   const user = await getEffectiveUser();
@@ -20,7 +19,7 @@ export async function PATCH(request: Request) {
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const phone = typeof body.phone === "string" ? body.phone.trim() : "";
-  if (!name || name.length > 140 || !phone || phone.length > 32 || !/^[+0-9 ()-]{9,20}$/.test(phone)) {
+  if (!name || name.length > 140 || !phone || phone.length > 32 || !isValidPhone(phone)) {
     return Response.json({ error: "Periksa kembali nama dan nomor telepon." }, { status: 400 });
   }
 
@@ -37,7 +36,7 @@ export async function PATCH(request: Request) {
     if (body.newPassword.length < 8) {
       return Response.json({ error: "Password baru minimal 8 karakter." }, { status: 400 });
     }
-    const [row] = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, user.id)).limit(1);
+    const row = await findUserById(user.id);
     if (!row || !(await verifyPassword(body.currentPassword, row.passwordHash))) {
       return Response.json({ error: "Password lama salah." }, { status: 400 });
     }
@@ -45,7 +44,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    await db.update(users).set(set).where(eq(users.id, user.id));
+    await updateUser(user.id, set);
     return Response.json({ ok: true });
   } catch (error) {
     console.error(error);

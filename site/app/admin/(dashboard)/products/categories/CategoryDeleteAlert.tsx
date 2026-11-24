@@ -1,18 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import ConfirmDeleteDialog from "@/components/shared/ConfirmDeleteDialog";
 import type { Category } from "../types";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function CategoryDeleteAlert({
   category,
@@ -25,55 +15,17 @@ export default function CategoryDeleteAlert({
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-
-  async function confirmDelete() {
-    if (!category) return;
-    setBusy(true);
-    try {
-      const response = await fetch(`/api/admin/products/categories/${category.id}`, {
-        method: "DELETE",
-      });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "Kategori gagal dihapus.");
-      toast.success("Kategori dihapus.");
-      onOpenChange(false);
-      onDeleted();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Kategori gagal dihapus.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
+  const { t } = useTranslation();
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Hapus kategori?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {category && (
-              <>
-                Kategori <strong>{category.name}</strong> akan dihapus permanen. Kategori yang
-                masih dipakai produk tidak bisa dihapus.
-              </>
-            )}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Batal</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={busy}
-            onClick={(event) => {
-              event.preventDefault();
-              confirmDelete();
-            }}
-          >
-            {busy ? "Menghapus…" : "Ya, hapus"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDeleteDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("categories.delete.title")}
+      description={category && t("categories.delete.description", { name: category.name })}
+      endpoint={category ? `/api/admin/products/categories/${category.id}` : null}
+      successMessage={t("categories.delete.success")}
+      errorFallback={t("categories.delete.failed")}
+      onDeleted={onDeleted}
+    />
   );
 }
